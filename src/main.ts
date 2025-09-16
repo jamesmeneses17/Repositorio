@@ -28,6 +28,14 @@ async function bootstrap() {
     }),
   );
 
+  console.log('Conectando a BD:', {
+  host: configService.get('MYSQL_HOST'),
+  port: configService.get('MYSQL_PORT'),
+  user: configService.get('MYSQL_USER'),
+  database: configService.get('MYSQL_DATABASE'),
+});
+
+
   // Swagger Config
   const config = new DocumentBuilder()
     .setTitle('Sistema de Ventas API')
