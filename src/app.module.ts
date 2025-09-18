@@ -19,7 +19,7 @@ import { CategoriasModule } from './modules/categorias/categorias.module';
           password: config.get('MYSQL_PASSWORD'),
           database: config.get('MYSQL_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: false,
         }),
       }),
         UsuariosAdminModule,
