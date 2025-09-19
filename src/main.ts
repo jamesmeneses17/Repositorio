@@ -4,8 +4,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import basicAuth from 'express-basic-auth';
 import { ConfigService } from '@nestjs/config';
 
-
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
@@ -29,12 +27,20 @@ async function bootstrap() {
   );
 
   console.log('Conectando a BD:', {
-  host: configService.get('MYSQL_HOST'),
-  port: configService.get('MYSQL_PORT'),
-  user: configService.get('MYSQL_USER'),
-  database: configService.get('MYSQL_DATABASE'),
-});
+    host: configService.get('MYSQL_HOST'),
+    port: configService.get('MYSQL_PORT'),
+    user: configService.get('MYSQL_USER'),
+    database: configService.get('MYSQL_DATABASE'),
+  });
 
+  app.enableCors({
+    origin: [
+      'http://localhost:5173', 
+      'https://tu-dominio-frontend.com',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
 
   // Swagger Config
   const config = new DocumentBuilder()
@@ -46,6 +52,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
