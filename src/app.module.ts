@@ -5,7 +5,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsuariosAdminModule } from './modules/usuarios-admin/usuarios-admin.module';
 import { CategoriasModule } from './modules/categorias/categorias.module';
-import { ProductosModule } from './modules/productos/productos.module';
+import { SubcategoriasModule } from './modules/subcategorias/subcategorias.module';
 
 
 @Module({
@@ -25,7 +25,7 @@ import { ProductosModule } from './modules/productos/productos.module';
   }),
     UsuariosAdminModule,
     CategoriasModule,
-    ProductosModule,
+    SubcategoriasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
