@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Categoria } from '../../categorias/entities/categoria.entity';
+import { Producto } from '../../productos/entities/producto.entity';
 
 @Entity('subcategorias')
 export class Subcategoria {
@@ -15,4 +16,7 @@ export class Subcategoria {
   @ManyToOne(() => Categoria, (categoria) => categoria.subcategorias, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'categoria_id' })
   categoria: Categoria;
+
+  @OneToMany(() => Producto, (producto) => producto.subcategoria)
+  productos: Producto[];
 }

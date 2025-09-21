@@ -13,9 +13,6 @@ export class Categoria {
   @Column({ type: 'text', nullable: true })
   descripcion?: string;
 
-
-
-  // Relación con subcategorías
   @OneToMany(() => Subcategoria, (subcategoria) => subcategoria.categoria)
   subcategorias: Subcategoria[];
 }

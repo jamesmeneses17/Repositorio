@@ -6,6 +6,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsuariosAdminModule } from './modules/usuarios-admin/usuarios-admin.module';
 import { CategoriasModule } from './modules/categorias/categorias.module';
 import { SubcategoriasModule } from './modules/subcategorias/subcategorias.module';
+import { MarcasModule } from './modules/marcas/marcas.module';
+import { UnidadesMedidaModule } from './modules/unidades-medida/unidades-medida.module';
+import { ProductosModule } from './modules/productos/productos.module';
+import { EspecificacionesTecnicasModule } from './modules/especificaciones-tecnicas/especificaciones-tecnicas.module';
 
 
 @Module({
@@ -26,6 +30,10 @@ import { SubcategoriasModule } from './modules/subcategorias/subcategorias.modul
     UsuariosAdminModule,
     CategoriasModule,
     SubcategoriasModule,
+    MarcasModule,
+    UnidadesMedidaModule,
+    ProductosModule,
+    EspecificacionesTecnicasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
