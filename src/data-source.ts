@@ -6,6 +6,11 @@ config({ path: process.env.NODE_ENV === 'migration' ? '.env.migration' : '.env' 
 import { Categoria } from './modules/categorias/entities/categoria.entity';
 import { Subcategoria } from './modules/subcategorias/entities/subcategoria.entity';
 import { UsuarioAdmin } from './modules/usuarios-admin/entities/usuarios-admin.entity';
+import { Producto } from './modules/productos/entities/producto.entity';
+import { Marca } from './modules/marcas/entities/marca.entity';
+import { UnidadMedida } from './modules/unidades-medida/entities/unidades-medida.entity';
+import { FichaTecnica } from './modules/fichas-tecnicas/entities/fichas-tecnica.entity';
+import { EspecificacionesTecnicas } from './modules/especificaciones-tecnicas/entities/especificaciones-tecnica.entity';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -14,7 +19,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'sistema_ventas',
-  entities: [Categoria, Subcategoria, UsuarioAdmin],
+  entities: [Categoria, Subcategoria, UsuarioAdmin, Producto, Marca, UnidadMedida, FichaTecnica, EspecificacionesTecnicas],
   migrations: ['src/migrations/*.ts'],
 });
 
