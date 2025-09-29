@@ -2,15 +2,18 @@ import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
 
 // Cargar variables de entorno para migraciones
-config({ path: process.env.NODE_ENV === 'migration' ? '.env.migration' : '.env' });
-import { Categoria } from './modules/categorias/entities/categoria.entity';
-import { Subcategoria } from './modules/subcategorias/entities/subcategoria.entity';
-import { UsuarioAdmin } from './modules/usuarios-admin/entities/usuarios-admin.entity';
-import { Producto } from './modules/productos/entities/producto.entity';
-import { Marca } from './modules/marcas/entities/marca.entity';
-import { UnidadMedida } from './modules/unidades-medida/entities/unidades-medida.entity';
-import { FichaTecnica } from './modules/fichas-tecnicas/entities/fichas-tecnica.entity';
-import { EspecificacionesTecnicas } from './modules/especificaciones-tecnicas/entities/especificaciones-tecnica.entity';
+if (process.env.NODE_ENV === 'migration') {
+  config({ path: '.env.migration' });
+} else {
+  config({ path: '.env' });
+}
+import { Categoria } from './modules/catalogos_basicos/categorias/entities/categoria.entity';
+import { Subcategoria } from './modules/catalogos_basicos/subcategorias/entities/subcategoria.entity';
+import { UsuariosAdmin } from './modules/cliente-administracion/usuarios-admin/entities/usuarios-admin.entity';
+import { Producto } from './modules/gestion_producto/productos/entities/producto.entity';
+import { Marca } from './modules/catalogos_basicos/marcas/entities/marca.entity';
+import { UnidadMedida } from './modules/catalogos_basicos/unidades-medida/entities/unidad-medida.entity';
+import { Especificacion } from './modules/catalogos_basicos/especificaciones/entities/especificacion.entity';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -19,7 +22,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'sistema_ventas',
-  entities: [Categoria, Subcategoria, UsuarioAdmin, Producto, Marca, UnidadMedida, FichaTecnica, EspecificacionesTecnicas],
+  entities: [Categoria, Subcategoria, UsuariosAdmin, Producto, Marca, UnidadMedida, Especificacion],
   migrations: ['src/migrations/*.ts'],
 });
 
