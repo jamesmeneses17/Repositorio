@@ -25,11 +25,32 @@ export class AuthService {
         const user = await this.usuarioRepo.findOne({ where: { correo } });
 
         if (!user) {
-            console.log(' Usuario NO encontrado en BD');
+            console.log('❌ Usuario NO encontrado en BD');
             throw new UnauthorizedException('Credenciales inválidas');
         }
 
+        console.log('✅ Usuario encontrado en BD:');
+        console.log('- ID:', user.id);
+        console.log('- Nombre:', user.nombre);
+        console.log('- Correo BD:', user.correo);
+        console.log('- Contraseña BD:', user.contrasena);
+        console.log('- Tipo contraseña BD:', typeof user.contrasena);
+        console.log('- Longitud contraseña BD:', user.contrasena?.length);
+        console.log('- Rol:', user.rol);
 
+        // 🔒 VALIDACIÓN DE CONTRASEÑA - CRÍTICO
+        console.log('🔍 Comparando contraseñas:');
+        console.log('Recibida  :', `"${contrasena}"`);
+        console.log('En BD     :', `"${user.contrasena}"`);
+        console.log('Son iguales?:', contrasena === user.contrasena);
+
+        if (contrasena !== user.contrasena) {
+            console.log('❌ Contraseñas NO coinciden - ACCESO DENEGADO');
+            throw new UnauthorizedException('Credenciales inválidas');
+        }
+
+        console.log('✅ Contraseñas coinciden - Login exitoso');
+        console.log('==================');
         return user;
     }
 

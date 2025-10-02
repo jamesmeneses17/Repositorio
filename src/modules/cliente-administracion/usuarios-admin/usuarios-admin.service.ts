@@ -1,26 +1,76 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateUsuariosAdminDto } from './dto/create-usuarios-admin.dto';
 import { UpdateUsuariosAdminDto } from './dto/update-usuarios-admin.dto';
+import { UsuarioAdmin } from './entities/usuarios-admin.entity';
 
 @Injectable()
 export class UsuariosAdminService {
-  create(createUsuariosAdminDto: CreateUsuariosAdminDto) {
-    return 'This action adds a new usuariosAdmin';
+  constructor(
+    @InjectRepository(UsuarioAdmin)
+    private readonly usuarioAdminRepository: Repository<UsuarioAdmin>,
+  ) {}
+
+  async create(createUsuariosAdminDto: CreateUsuariosAdminDto) {
+    const nuevoUsuario = this.usuarioAdminRepository.create(createUsuariosAdminDto);
+    return await this.usuarioAdminRepository.save(nuevoUsuario);
   }
 
-  findAll() {
-    return `This action returns all usuariosAdmin`;
+  async findAll() {
+    console.log('📋 Obteniendo todos los usuarios admin...');
+    try {
+      const usuarios = await this.usuarioAdminRepository.find({
+        select: ['id', 'nombre', 'correo', 'rol', 'fecha_creacion']
+      });
+      console.log(`✅ Encontrados ${usuarios.length} usuarios admin`);
+      return usuarios;
+    } catch (error) {
+      console.error('❌ Error al obtener usuarios admin:', error);
+      throw error;
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} usuariosAdmin`;
+  async findOne(id: number) {
+    console.log(`🔍 Buscando usuario admin con ID: ${id}`);
+    try {
+      const usuario = await this.usuarioAdminRepository.findOne({
+        where: { id },
+        select: ['id', 'nombre', 'correo', 'rol', 'fecha_creacion']
+      });
+      
+      if (!usuario) {
+        console.log(`❌ Usuario admin con ID ${id} no encontrado`);
+        return null;
+      }
+      
+      console.log(`✅ Usuario admin encontrado: ${usuario.nombre}`);
+      return usuario;
+    } catch (error) {
+      console.error(`❌ Error al buscar usuario admin ${id}:`, error);
+      throw error;
+    }
   }
 
-  update(id: number, updateUsuariosAdminDto: UpdateUsuariosAdminDto) {
-    return `This action updates a #${id} usuariosAdmin`;
+  async update(id: number, updateUsuariosAdminDto: UpdateUsuariosAdminDto) {
+    console.log(`📝 Actualizando usuario admin ID: ${id}`);
+    try {
+      await this.usuarioAdminRepository.update(id, updateUsuariosAdminDto);
+      return await this.findOne(id);
+    } catch (error) {
+      console.error(`❌ Error al actualizar usuario admin ${id}:`, error);
+      throw error;
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} usuariosAdmin`;
+  async remove(id: number) {
+    console.log(`🗑️ Eliminando usuario admin ID: ${id}`);
+    try {
+      const resultado = await this.usuarioAdminRepository.delete(id);
+      return resultado;
+    } catch (error) {
+      console.error(`❌ Error al eliminar usuario admin ${id}:`, error);
+      throw error;
+    }
   }
 }
