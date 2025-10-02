@@ -17,7 +17,7 @@ import { FacturasModule } from './modules/facturacion/facturas/facturas.module';
 import { UsuariosAdminModule } from './modules/cliente-administracion/usuarios-admin/usuarios-admin.module';
 import { MetodosPagoModule } from './modules/cliente-administracion/metodos-pago/metodos-pago.module';
 import { ClientesModule } from './modules/cliente-administracion/clientes/clientes.module';
-
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -48,6 +48,7 @@ import { ClientesModule } from './modules/cliente-administracion/clientes/client
     MetodosPagoModule,
     UsuariosAdminModule,
     FacturasModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

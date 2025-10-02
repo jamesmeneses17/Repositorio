@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import basicAuth from 'express-basic-auth';
 import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,20 +28,25 @@ async function bootstrap() {
     }),
   );
 
-  console.log('Conectando a BD:', {
-    host: configService.get('MYSQL_HOST'),
-    port: configService.get('MYSQL_PORT'),
-    user: configService.get('MYSQL_USER'),
-    database: configService.get('MYSQL_DATABASE'),
-  });
+
 
   app.enableCors({
     origin: [
       configService.get<string>('FRONTEND_URL') ?? 'http://localhost:5173',
+      'http://localhost:3000', // Para React en puerto 3000
+      'http://127.0.0.1:3000',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // elimina propiedades que no estén en el DTO
+      forbidNonWhitelisted: true,
+      transform: true, // transforma payloads a objetos de las clases DTO
+    }),
+  );
 
   // Swagger Config
   const config = new DocumentBuilder()
