@@ -1,3 +1,4 @@
+// usuarios-admin.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -72,5 +73,15 @@ export class UsuariosAdminService {
       console.error(`❌ Error al eliminar usuario admin ${id}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Buscar un usuario por ID (solo datos públicos para el perfil)
+   */
+  async findById(id: number) {
+    return await this.usuarioAdminRepository.findOne({
+      where: { id },
+      select: ['id', 'nombre', 'correo', 'rol'], // 👈 solo los campos públicos
+    });
   }
 }
