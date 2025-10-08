@@ -18,6 +18,8 @@ import { UsuariosAdminModule } from './modules/cliente-administracion/usuarios-a
 import { MetodosPagoModule } from './modules/cliente-administracion/metodos-pago/metodos-pago.module';
 import { ClientesModule } from './modules/cliente-administracion/clientes/clientes.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { EstadosModule } from './catalogos_basicos/estados/estados.module';
+import { EstadosModule } from './modules/catalogos_basicos/estados/estados.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -49,6 +51,7 @@ import { AuthModule } from './modules/auth/auth.module';
     UsuariosAdminModule,
     FacturasModule,
     AuthModule,
+    EstadosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

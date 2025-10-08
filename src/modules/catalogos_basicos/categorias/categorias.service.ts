@@ -13,12 +13,18 @@ export class CategoriasService {
   ) {}
 
   async create(dto: CreateCategoriaDto): Promise<Categoria> {
-    const categoria = this.categoriaRepository.create(dto);
+    const dataToSave = {
+      ...dto,
+      estadoId: dto.estadoId || 1,
+    };
+    const categoria = this.categoriaRepository.create(dataToSave);
     return await this.categoriaRepository.save(categoria);
   }
 
   async findAll(): Promise<Categoria[]> {
-    return await this.categoriaRepository.find();
+    return await this.categoriaRepository.find({
+      where: { estadoId: 1 },
+    });
   }
 
   async findOne(id: number): Promise<Categoria> {
