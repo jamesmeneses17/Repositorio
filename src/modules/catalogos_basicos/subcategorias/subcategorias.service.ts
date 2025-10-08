@@ -20,15 +20,21 @@ export class SubcategoriasService {
     if (!categoria) {
       throw new NotFoundException(`Categoría con id ${dto.categoriaId} no encontrada`);
     }
-    const subcategoria = this.subcategoriaRepository.create({
+    
+    const dataToSave = {
       nombre: dto.nombre,
       categoria,
-    });
+      estadoId: dto.estadoId || 1, 
+    };
+
+    const subcategoria = this.subcategoriaRepository.create(dataToSave);
     return await this.subcategoriaRepository.save(subcategoria);
   }
 
   async findAll(): Promise<Subcategoria[]> {
-    return await this.subcategoriaRepository.find();
+    return await this.subcategoriaRepository.find({
+      where: { estadoId: 1 },
+    });
   }
 
   async findOne(id: number): Promise<Subcategoria> {
@@ -47,6 +53,7 @@ export class SubcategoriasService {
     }
 
     if (dto.nombre) subcategoria.nombre = dto.nombre;
+    if (dto.estadoId) subcategoria.estadoId = dto.estadoId; 
 
     return await this.subcategoriaRepository.save(subcategoria);
   }

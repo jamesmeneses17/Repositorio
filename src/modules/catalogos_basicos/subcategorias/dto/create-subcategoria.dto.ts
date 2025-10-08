@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MaxLength, IsInt } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, IsInt, IsOptional } from 'class-validator';
 
 export class CreateSubcategoriaDto {
   @IsString()
@@ -9,4 +9,8 @@ export class CreateSubcategoriaDto {
   @IsInt()
   @IsNotEmpty()
   categoriaId: number;
+
+  @IsInt()
+  @IsOptional()
+  estadoId?: number;
 }

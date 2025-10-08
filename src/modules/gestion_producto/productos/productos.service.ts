@@ -13,12 +13,18 @@ export class ProductosService {
   ) {}
 
   async create(dto: CreateProductoDto): Promise<Producto> {
-    const producto = this.productosRepo.create(dto);
+    const dataToSave = {
+      ...dto,
+      estadoId: dto.estadoId || 1,
+    };
+    const producto = this.productosRepo.create(dataToSave);
     return this.productosRepo.save(producto);
   }
 
   async findAll(): Promise<Producto[]> {
-    return this.productosRepo.find();
+    return this.productosRepo.find({
+      where: { estadoId: 1 },
+    });
   }
 
   async findOne(id: number): Promise<Producto> {
@@ -42,10 +48,10 @@ export class ProductosService {
     await this.productosRepo.remove(producto);
   }
 
-  // Métodos adicionales para obtener relaciones cuando sea necesario
   async findAllWithRelations(): Promise<Producto[]> {
     return this.productosRepo.find({
       relations: ['caracteristicas', 'precios', 'inventario'],
+      where: { estadoId: 1 },
     });
   }
 

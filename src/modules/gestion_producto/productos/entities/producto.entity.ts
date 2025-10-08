@@ -1,7 +1,7 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Inventario } from '../../inventario/entities/inventario.entity';
 import { ProductoCaracteristica } from '../../productos-caracteristicas/entities/productos-caracteristica.entity';
-
+import { Estado } from '../../../catalogos_basicos/estados/entities/estado.entity';
 @Entity('productos')
 export class Producto {
   @PrimaryGeneratedColumn()
@@ -19,14 +19,21 @@ export class Producto {
   @Column({ type: 'text', nullable: true })
   descripcion?: string;
 
-  // 🔗 Relaciones
+  // ESTADO
+  @Column({ name: 'estado_id', type: 'int', default: 1 })
+  estadoId: number;
+
+  @ManyToOne(() => Estado, { eager: true })
+  @JoinColumn({ name: 'estado_id' })
+  estado: Estado; 
+
+  // RELACIONES
   @OneToMany(() => ProductoCaracteristica, (caracteristica) => caracteristica.producto)
   caracteristicas: ProductoCaracteristica[];
 
   @OneToMany(() => Inventario, (inv) => inv.producto)
   inventario: Inventario[];
 
-  // TODO: Verificar si existe FacturaDetalle o crear la entidad
   // @OneToMany(() => FacturaDetalle, (detalle) => detalle.producto)
   // facturasDetalle: FacturaDetalle[];
 }
