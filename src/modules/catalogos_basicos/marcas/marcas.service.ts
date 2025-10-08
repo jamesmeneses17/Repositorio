@@ -12,13 +12,19 @@ export class MarcasService {
     private readonly marcaRepository: Repository<Marca>,
   ) {}
 
-  create(createMarcaDto: CreateMarcaDto) {
-    const marca = this.marcaRepository.create(createMarcaDto);
+  create(dto: CreateMarcaDto) {
+    const dataToSave = {
+      ...dto,
+      estadoId: dto.estadoId || 1,
+    };
+    const marca = this.marcaRepository.create(dataToSave);
     return this.marcaRepository.save(marca);
   }
 
   findAll() {
-    return this.marcaRepository.find();
+    return this.marcaRepository.find({
+      where: { estadoId: 1 },
+    });
   }
 
   async findOne(id: number) {
@@ -29,9 +35,9 @@ export class MarcasService {
     return marca;
   }
 
-  async update(id: number, updateMarcaDto: UpdateMarcaDto) {
+  async update(id: number, dto: UpdateMarcaDto) {
     const marca = await this.findOne(id);
-    Object.assign(marca, updateMarcaDto);
+    Object.assign(marca, dto);
     return this.marcaRepository.save(marca);
   }
 
@@ -40,9 +46,11 @@ export class MarcasService {
     return this.marcaRepository.remove(marca);
   }
 
-  // Métodos adicionales para obtener relaciones cuando sea necesario
   findAllWithRelations() {
-    return this.marcaRepository.find({ relations: ['productos_caracteristicas'] });
+    return this.marcaRepository.find({ 
+      relations: ['productos_caracteristicas'],
+      where: { estadoId: 1 },
+    });
   }
 
   async findOneWithRelations(id: number) {
