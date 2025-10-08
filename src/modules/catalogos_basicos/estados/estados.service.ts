@@ -1,26 +1,23 @@
-import { Injectable } from '@nestjs/common';
-import { CreateEstadoDto } from './dto/create-estado.dto';
-import { UpdateEstadoDto } from './dto/update-estado.dto';
-
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Estado } from './entities/estado.entity'; 
 @Injectable()
 export class EstadosService {
-  create(createEstadoDto: CreateEstadoDto) {
-    return 'This action adds a new estado';
+  constructor(
+    @InjectRepository(Estado)
+    private readonly estadoRepository: Repository<Estado>,
+  ) {}
+
+  async findAll(): Promise<Estado[]> {
+    return this.estadoRepository.find();
   }
 
-  findAll() {
-    return `This action returns all estados`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} estado`;
-  }
-
-  update(id: number, updateEstadoDto: UpdateEstadoDto) {
-    return `This action updates a #${id} estado`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} estado`;
+  async findOne(id: number): Promise<Estado> {
+    const estado = await this.estadoRepository.findOne({ where: { id } });
+    if (!estado) {
+      throw new NotFoundException(`Estado con id ${id} no encontrado`);
+    }
+    return estado;
   }
 }
