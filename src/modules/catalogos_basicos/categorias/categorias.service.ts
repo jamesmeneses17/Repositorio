@@ -5,6 +5,25 @@ import { Categoria } from './entities/categoria.entity';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { UpdateCategoriaDto } from './dto/update-categoria.dto';
 
+
+const cleanAndNormalizeName = (name: string): string => {
+  if (!name) return '';
+
+ 
+  let cleanedName = name.toLowerCase();
+
+
+  cleanedName = cleanedName.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+
+
+  cleanedName = cleanedName.replace(/[^a-z0-9\s]/g, ''); 
+
+  // 4. Eliminar espacios duplicados y trim
+  cleanedName = cleanedName.replace(/\s+/g, ' ').trim(); 
+
+  return cleanedName;
+};
+
 @Injectable()
 export class CategoriasService {
   constructor(
@@ -15,22 +34,39 @@ export class CategoriasService {
   async create(dto: CreateCategoriaDto): Promise<Categoria> {
     const { nombre } = dto;
 
-    const existe = await this.categoriaRepository.findOne({ where: { nombre } });
-    if (existe) {
-      throw new BadRequestException('La categoría con ese nombre ya existe');
+    // 1. Limpiar y normalizar el nombre de entrada
+    const nombreNormalizado = cleanAndNormalizeName(nombre);
+
+    if (!nombreNormalizado) {
+        throw new BadRequestException('El nombre de la categoría no puede estar vacío.');
+    }
+
+    // 2. Buscar si ya existe la versión normalizada en la base de datos (LOWER() replica la limpieza)
+    const existe = await this.categoriaRepository
+      .createQueryBuilder('categoria')
+      .where('LOWER(REPLACE(REPLACE(REPLACE(categoria.nombre, "á", "a"), "é", "e"), "í", "i")) = :nombreNormalizado', { nombreNormalizado })
+      .getOne();
+
+    
+    const existeCaseInsensitive = await this.categoriaRepository
+      .createQueryBuilder('categoria')
+      .where('LOWER(categoria.nombre) = :nombre', { nombre: nombre.toLowerCase() })
+      .getOne();
+      
+    if (existeCaseInsensitive) {
+      throw new BadRequestException('La categoría con ese nombre ya existe. Por favor, use otro nombre.');
     }
 
     const dataToSave = {
       ...dto,
-      estadoId: dto.estadoId || 1,
+      estadoId: dto.estadoId || 1, 
     };
 
     try {
       const categoria = this.categoriaRepository.create(dataToSave);
       return await this.categoriaRepository.save(categoria);
     } catch (error) {
-      // 🧩 Manejo adicional por si MySQL lanza un error de duplicado directamente
-      if (error.code === 'ER_DUP_ENTRY') {
+      if (error.code === 'ER_DUP_ENTRY' || error.code === '23505') { 
         throw new BadRequestException('La categoría con ese nombre ya existe');
       }
       throw error;
@@ -55,7 +91,22 @@ export class CategoriasService {
   }
 
   async update(id: number, dto: UpdateCategoriaDto): Promise<Categoria> {
+    if (dto.nombre) {
+      const nombreNormalizado = dto.nombre.toLowerCase();
+      
+      const existe = await this.categoriaRepository
+        .createQueryBuilder('categoria')
+        .where('LOWER(categoria.nombre) = :nombre', { nombre: nombreNormalizado })
+        .andWhere('categoria.id != :id', { id }) // Excluir la categoría que estamos editando
+        .getOne();
+
+      if (existe) {
+        throw new BadRequestException('Ya existe otra categoría con ese nombre.');
+      }
+    }
+    
     await this.categoriaRepository.update(id, dto);
+    
     const categoriaActualizada = await this.findOne(id);
     if (!categoriaActualizada) {
       throw new NotFoundException(`Categoría con id ${id} no encontrada después de actualizar`);
