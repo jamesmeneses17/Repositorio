@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany, PrimaryGeneratedColumn, ManyToOne, JoinColum
 import { Inventario } from '../../inventario/entities/inventario.entity';
 import { ProductoCaracteristica } from '../../productos-caracteristicas/entities/productos-caracteristica.entity';
 import { Estado } from '../../../catalogos_basicos/estados/entities/estado.entity';
+import { Precio } from '../../precios/entities/precio.entity';
 @Entity('productos')
 export class Producto {
   @PrimaryGeneratedColumn()
@@ -33,6 +34,9 @@ export class Producto {
 
   @OneToMany(() => Inventario, (inv) => inv.producto)
   inventario: Inventario[];
+
+  @OneToMany(() => Precio, (precio) => precio.producto)
+  precios: Precio[]; 
 
   // @OneToMany(() => FacturaDetalle, (detalle) => detalle.producto)
   // facturasDetalle: FacturaDetalle[];

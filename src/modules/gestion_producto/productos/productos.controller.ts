@@ -14,12 +14,12 @@ export class ProductosController {
 
   @Get()
   findAll() {
-    return this.productosService.findAll();
+    return this.productosService.findAllWithRelations(); 
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.productosService.findOne(+id);
+    return this.productosService.findOne(+id); 
   }
 
   @Put(':id')
