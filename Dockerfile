@@ -11,7 +11,7 @@ COPY package.json package-lock.json ./
 
 # Instala SOLO las dependencias de producción. Esto es CRUCIAL.
 # Usar --only=production evita que se instalen las dependencias de desarrollo.
-RUN npm install --only=production
+RUN npm install
 
 # Copia el código fuente restante
 COPY . .
