@@ -25,19 +25,31 @@ export class ProductosService {
         const queryBuilder = this.productosRepo.createQueryBuilder('producto')
             .leftJoinAndSelect('producto.precios', 'precio')
             .leftJoinAndSelect('producto.inventario', 'inventario')
-            .innerJoin('producto.caracteristicas', 'caracteristica')
-            .where('producto.estadoId = :estado', { estado: 1 }); // Solo productos activos
+            .where('producto.estado_id = :estado', { estado: 1 });
 
-        if (subcategoriaId) {
-            queryBuilder.andWhere('caracteristica.subcategoria = :subcategoriaId', { subcategoriaId });
-        } else if (categoriaId) {
-            queryBuilder
-                .innerJoin('caracteristica.subcategoria', 'subcategoria')
-                .andWhere('subcategoria.categoria = :categoriaId', { categoriaId });
+        // Si se filtra por subcategoría o categoría, une explícitamente la tabla producto_caracteristicas
+        if (subcategoriaId || categoriaId) {
+            queryBuilder.innerJoin(
+                'producto_caracteristicas',
+                'caracteristica',
+                'caracteristica.producto_id = producto.id'
+            );
         }
 
-        // Elimina duplicados si hay varios matches
-        // queryBuilder.distinct(true); // Si usas Postgres, si no, omite
+        if (subcategoriaId) {
+            queryBuilder.andWhere('caracteristica.subcategoria_id = :subcategoriaId', { subcategoriaId });
+        } else if (categoriaId) {
+            // Une explícitamente la tabla subcategorias
+            queryBuilder.innerJoin(
+                'subcategorias',
+                'subcategoria',
+                'subcategoria.id = caracteristica.subcategoria_id'
+            );
+            queryBuilder.andWhere('subcategoria.categoria_id = :categoriaId', { categoriaId });
+        }
+
+        // Si usas Postgres y quieres evitar duplicados:
+        // queryBuilder.distinctOn(['producto.id']);
 
         return queryBuilder.getMany();
     }
