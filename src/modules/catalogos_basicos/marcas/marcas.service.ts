@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Marca } from './entities/marca.entity';
 import { CreateMarcaDto } from './dto/create-marca.dto';
 import { UpdateMarcaDto } from './dto/update-marca.dto';
@@ -10,9 +10,16 @@ export class MarcasService {
   constructor(
     @InjectRepository(Marca)
     private readonly marcaRepository: Repository<Marca>,
-  ) {}
+  ) { }
 
-  create(dto: CreateMarcaDto) {
+  async create(dto: CreateMarcaDto) {
+    // Validar que no exista una marca con el mismo nombre (case-insensitive)
+    const nombre = dto.nombre.trim();
+    const marcaExistente = await this.marcaRepository.findOne({ where: { nombre } });
+    if (marcaExistente) {
+      throw new ConflictException('Ya existe una marca con este nombre.');
+    }
+
     const dataToSave = {
       ...dto,
       estadoId: dto.estadoId || 1,
@@ -47,7 +54,7 @@ export class MarcasService {
   }
 
   findAllWithRelations() {
-    return this.marcaRepository.find({ 
+    return this.marcaRepository.find({
       relations: ['productos_caracteristicas'],
       where: { estadoId: 1 },
     });
