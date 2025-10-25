@@ -8,7 +8,6 @@ if (process.env.NODE_ENV === 'migration') {
   config({ path: '.env' });
 }
 import { Categoria } from './modules/catalogos_basicos/categorias/entities/categoria.entity';
-import { Subcategoria } from './modules/catalogos_basicos/subcategorias/entities/subcategoria.entity';
 import { Producto } from './modules/gestion_producto/productos/entities/producto.entity';
 import { Marca } from './modules/catalogos_basicos/marcas/entities/marca.entity';
 import { UnidadMedida } from './modules/catalogos_basicos/unidades-medida/entities/unidad-medida.entity';
@@ -22,7 +21,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'sistema_ventas',
-  entities: [Categoria, Subcategoria, UsuarioAdmin, Producto, Marca, UnidadMedida, Especificacion],
+  entities: [Categoria, UsuarioAdmin, Producto, Marca, UnidadMedida, Especificacion],
   migrations: ['src/migrations/*.ts'],
 });
 

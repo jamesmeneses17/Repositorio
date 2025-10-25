@@ -19,9 +19,7 @@ export class ProductosCaracteristicasService {
     if (dto.marca_id) {
       nueva.marca = { id: dto.marca_id } as any;
     }
-    if (dto.subcategoria_id) {
-      nueva.subcategoria = { id: dto.subcategoria_id } as any;
-    }
+   
     if (dto.unidad_medida_id) {
       nueva.unidad_medida = { id: dto.unidad_medida_id } as any;
     }
@@ -57,9 +55,7 @@ export class ProductosCaracteristicasService {
     if (dto.marca_id !== undefined) {
       entity.marca = dto.marca_id ? ({ id: dto.marca_id } as any) : null;
     }
-    if (dto.subcategoria_id !== undefined) {
-      entity.subcategoria = dto.subcategoria_id ? ({ id: dto.subcategoria_id } as any) : null;
-    }
+    
     if (dto.unidad_medida_id !== undefined) {
       entity.unidad_medida = dto.unidad_medida_id ? ({ id: dto.unidad_medida_id } as any) : null;
     }

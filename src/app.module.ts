@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { SubcategoriasModule } from './modules/catalogos_basicos/subcategorias/subcategorias.module';
 import { CategoriasModule } from './modules/catalogos_basicos/categorias/categorias.module';
 import { MarcasModule } from './modules/catalogos_basicos/marcas/marcas.module';
 import { UnidadesMedidaModule } from './modules/catalogos_basicos/unidades-medida/unidades-medida.module';
@@ -18,7 +17,6 @@ import { UsuariosAdminModule } from './modules/cliente-administracion/usuarios-a
 import { MetodosPagoModule } from './modules/cliente-administracion/metodos-pago/metodos-pago.module';
 import { ClientesModule } from './modules/cliente-administracion/clientes/clientes.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { EstadosModule } from './modules/catalogos_basicos/estados/estados.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -36,7 +34,6 @@ import { EstadosModule } from './modules/catalogos_basicos/estados/estados.modul
     }),
   }),
     CategoriasModule,
-    SubcategoriasModule,
     MarcasModule,
     UnidadesMedidaModule,
     EspecificacionesModule,
@@ -50,7 +47,6 @@ import { EstadosModule } from './modules/catalogos_basicos/estados/estados.modul
     UsuariosAdminModule,
     FacturasModule,
     AuthModule,
-    EstadosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

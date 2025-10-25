@@ -6,7 +6,6 @@ import {
 } from 'typeorm';
 import { Producto } from '../../productos/entities/producto.entity';
 import { Marca } from '../../../catalogos_basicos/marcas/entities/marca.entity';
-import { Subcategoria } from '../../../catalogos_basicos/subcategorias/entities/subcategoria.entity';
 import { UnidadMedida } from '../../../catalogos_basicos/unidades-medida/entities/unidad-medida.entity';
 import { Especificacion } from '../../../catalogos_basicos/especificaciones/entities/especificacion.entity';
 
@@ -24,9 +23,6 @@ export class ProductoCaracteristica {
   @JoinColumn({ name: 'marca_id' })
   marca: Marca;
 
-  @ManyToOne(() => Subcategoria, { nullable: true })
-  @JoinColumn({ name: 'subcategoria_id' })
-  subcategoria: Subcategoria;
 
   @ManyToOne(() => UnidadMedida, { nullable: true })
   @JoinColumn({ name: 'unidad_medida_id' })
