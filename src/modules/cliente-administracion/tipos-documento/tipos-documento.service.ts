@@ -1,26 +1,57 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTiposDocumentoDto } from './dto/create-tipos-documento.dto';
-import { UpdateTiposDocumentoDto } from './dto/update-tipos-documento.dto';
+// src/tipos-documento/tipos-documento.service.ts
+
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { TipoDocumento } from './entities/tipos-documento.entity';
+import { CreateTipoDocumentoDto } from './dto/create-tipos-documento.dto';
+import { UpdateTipoDocumentoDto } from './dto/update-tipos-documento.dto';
 
 @Injectable()
 export class TiposDocumentoService {
-  create(createTiposDocumentoDto: CreateTiposDocumentoDto) {
-    return 'This action adds a new tiposDocumento';
+  constructor(
+    @InjectRepository(TipoDocumento)
+    private readonly tipoDocumentoRepository: Repository<TipoDocumento>,
+  ) {}
+
+  // Crear un nuevo Tipo de Documento
+  async create(createTipoDocumentoDto: CreateTipoDocumentoDto): Promise<TipoDocumento> {
+    const tipoDocumento = this.tipoDocumentoRepository.create(createTipoDocumentoDto);
+    return this.tipoDocumentoRepository.save(tipoDocumento);
   }
 
-  findAll() {
-    return `This action returns all tiposDocumento`;
+  // Obtener todos los Tipos de Documento (Necesario para el dropdown en el formulario de Clientes)
+  async findAll(): Promise<TipoDocumento[]> {
+    // Si tienes un campo de estado, podrías filtrar por activo:
+    // return this.tipoDocumentoRepository.find({ where: { estadoId: 1 } });
+    return this.tipoDocumentoRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} tiposDocumento`;
+  // Obtener un solo Tipo de Documento por ID
+  async findOne(id: number): Promise<TipoDocumento> {
+    const tipoDocumento = await this.tipoDocumentoRepository.findOne({ where: { id } });
+    if (!tipoDocumento) {
+      throw new NotFoundException(`Tipo de Documento con ID ${id} no encontrado.`);
+    }
+    return tipoDocumento;
   }
 
-  update(id: number, updateTiposDocumentoDto: UpdateTiposDocumentoDto) {
-    return `This action updates a #${id} tiposDocumento`;
+  // Actualizar un Tipo de Documento
+  async update(id: number, updateTipoDocumentoDto: UpdateTipoDocumentoDto): Promise<TipoDocumento> {
+    const tipoDocumento = await this.findOne(id); // Verifica si existe
+
+    // Combina los datos existentes con los nuevos DTOs
+    const updatedTipoDocumento = this.tipoDocumentoRepository.merge(tipoDocumento, updateTipoDocumentoDto);
+    
+    return this.tipoDocumentoRepository.save(updatedTipoDocumento);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} tiposDocumento`;
+  // Eliminar un Tipo de Documento
+  async remove(id: number): Promise<void> {
+    const result = await this.tipoDocumentoRepository.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`Tipo de Documento con ID ${id} no encontrado.`);
+    }
   }
 }

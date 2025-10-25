@@ -1,34 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+// src/tipos-documento/tipos-documento.controller.ts
+
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { TiposDocumentoService } from './tipos-documento.service';
-import { CreateTiposDocumentoDto } from './dto/create-tipos-documento.dto';
-import { UpdateTiposDocumentoDto } from './dto/update-tipos-documento.dto';
+import { TipoDocumento } from './entities/tipos-documento.entity';
+import { UpdateTipoDocumentoDto } from './dto/update-tipos-documento.dto';
+import { CreateTipoDocumentoDto } from './dto/create-tipos-documento.dto';
 
 @Controller('tipos-documento')
 export class TiposDocumentoController {
   constructor(private readonly tiposDocumentoService: TiposDocumentoService) {}
 
   @Post()
-  create(@Body() createTiposDocumentoDto: CreateTiposDocumentoDto) {
-    return this.tiposDocumentoService.create(createTiposDocumentoDto);
+  @HttpCode(HttpStatus.CREATED)
+  create(@Body() createTipoDocumentoDto: CreateTipoDocumentoDto): Promise<TipoDocumento> {
+    return this.tiposDocumentoService.create(createTipoDocumentoDto);
   }
 
+  // Endpoint necesario para el formulario de Clientes
   @Get()
-  findAll() {
+  findAll(): Promise<TipoDocumento[]> {
     return this.tiposDocumentoService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string): Promise<TipoDocumento> {
     return this.tiposDocumentoService.findOne(+id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTiposDocumentoDto: UpdateTiposDocumentoDto) {
-    return this.tiposDocumentoService.update(+id, updateTiposDocumentoDto);
+  update(@Param('id') id: string, @Body() updateTipoDocumentoDto: UpdateTipoDocumentoDto): Promise<TipoDocumento> {
+    return this.tiposDocumentoService.update(+id, updateTipoDocumentoDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id') id: string): Promise<void> {
     return this.tiposDocumentoService.remove(+id);
   }
 }
