@@ -43,7 +43,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // elimina propiedades que no estén en el DTO
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
       transform: true, // transforma payloads a objetos de las clases DTO
     }),
   );
