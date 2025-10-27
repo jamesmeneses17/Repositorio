@@ -6,7 +6,6 @@ import { CreateMetodoPagoDto } from './dto/create-metodos-pago.dto';
 import { MetodoPago } from './entities/metodos-pago.entity';
 import { UpdateMetodoPagoDto } from './dto/update-metodos-pago.dto';
 
-
 @Injectable()
 export class MetodosPagoService {
   constructor(
@@ -14,25 +13,34 @@ export class MetodosPagoService {
     private readonly metodoPagoRepository: Repository<MetodoPago>,
   ) {}
 
+  // 🟢 CREAR NUEVO MÉTODO DE PAGO
   async create(createMetodoPagoDto: CreateMetodoPagoDto): Promise<MetodoPago> {
-    const { nombre } = createMetodoPagoDto;
+    // 1️⃣ Normalizamos el nombre (evita duplicados por espacios o mayúsculas)
+    const nombreNormalizado = createMetodoPagoDto.nombre.trim();
 
-    // Verificar unicidad (opcional, pero buena práctica si es único en BD)
-    const existing = await this.metodoPagoRepository.findOne({ where: { nombre } });
+    // 2️⃣ Validamos si ya existe (ignorando mayúsculas)
+    const existing = await this.metodoPagoRepository
+      .createQueryBuilder('m')
+      .where('LOWER(TRIM(m.nombre)) = LOWER(:nombre)', { nombre: nombreNormalizado })
+      .getOne();
+
     if (existing) {
-      throw new BadRequestException(`El método de pago '${nombre}' ya existe.`);
+      throw new BadRequestException(`El método de pago '${nombreNormalizado}' ya existe.`);
     }
 
-    const metodoPago = this.metodoPagoRepository.create(createMetodoPagoDto);
-    return this.metodoPagoRepository.save(metodoPago);
+    // 3️⃣ Creamos y guardamos con el nombre limpio
+    const metodoPago = this.metodoPagoRepository.create({ nombre: nombreNormalizado });
+    return await this.metodoPagoRepository.save(metodoPago);
   }
 
+  // 🔍 OBTENER TODOS
   async findAll(): Promise<MetodoPago[]> {
-    return this.metodoPagoRepository.find();
-    // Si necesitas paginación, aquí usarías .findAndCount o QueryBuilder.
-    // Para catálogos pequeños, find() es suficiente.
+    return this.metodoPagoRepository.find({
+      order: { nombre: 'ASC' },
+    });
   }
 
+  // 🔍 OBTENER UNO
   async findOne(id: number): Promise<MetodoPago> {
     const metodoPago = await this.metodoPagoRepository.findOne({ where: { id } });
     if (!metodoPago) {
@@ -41,33 +49,38 @@ export class MetodosPagoService {
     return metodoPago;
   }
 
+  // ✏️ ACTUALIZAR
   async update(id: number, updateMetodoPagoDto: UpdateMetodoPagoDto): Promise<MetodoPago> {
-    // 1. Verificar si existe
     const metodoPago = await this.metodoPagoRepository.findOne({ where: { id } });
     if (!metodoPago) {
       throw new NotFoundException(`Método de pago con ID ${id} no encontrado.`);
     }
 
-    // 2. Verificar unicidad si se cambia el nombre
-    if (updateMetodoPagoDto.nombre && updateMetodoPagoDto.nombre !== metodoPago.nombre) {
-      const existing = await this.metodoPagoRepository.findOne({ where: { nombre: updateMetodoPagoDto.nombre } });
-      if (existing && existing.id !== id) {
-        throw new BadRequestException(`El método de pago '${updateMetodoPagoDto.nombre}' ya existe.`);
+    // Si cambia el nombre, verificamos duplicado
+    if (updateMetodoPagoDto.nombre) {
+      const nombreNormalizado = updateMetodoPagoDto.nombre.trim();
+
+      const existing = await this.metodoPagoRepository
+        .createQueryBuilder('m')
+        .where('LOWER(TRIM(m.nombre)) = LOWER(:nombre)', { nombre: nombreNormalizado })
+        .andWhere('m.id != :id', { id })
+        .getOne();
+
+      if (existing) {
+        throw new BadRequestException(`El método de pago '${nombreNormalizado}' ya existe.`);
       }
+
+      metodoPago.nombre = nombreNormalizado;
     }
 
-    // 3. Aplicar y guardar cambios
-    this.metodoPagoRepository.merge(metodoPago, updateMetodoPagoDto);
-    return this.metodoPagoRepository.save(metodoPago);
+    return await this.metodoPagoRepository.save(metodoPago);
   }
 
- 
-
-  async remove(id: number): Promise<void> { 
-    const result = await this.metodoPagoRepository.delete(id);
-    
-    if (result.affected === 0) {
-      throw new NotFoundException(`Método de pago con ID ${id} no encontrado.`);
-    }
-  }
+  // 🗑️ ELIMINAR
+  async remove(id: number): Promise<void> {
+    const result = await this.metodoPagoRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Método de pago con ID ${id} no encontrado.`);
+    }
+  }
 }
