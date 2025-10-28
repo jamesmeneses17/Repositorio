@@ -13,16 +13,14 @@ export class MetodosPagoService {
     private readonly metodoPagoRepository: Repository<MetodoPago>,
   ) {}
 
-  // 🟢 CREAR NUEVO MÉTODO DE PAGO
   async create(createMetodoPagoDto: CreateMetodoPagoDto): Promise<MetodoPago> {
-    // 1️⃣ Normalizamos el nombre (evita duplicados por espacios o mayúsculas)
     const nombreNormalizado = createMetodoPagoDto.nombre.trim();
 
-    // 2️⃣ Validamos si ya existe (ignorando mayúsculas)
-    const existing = await this.metodoPagoRepository
-      .createQueryBuilder('m')
-      .where('LOWER(TRIM(m.nombre)) = LOWER(:nombre)', { nombre: nombreNormalizado })
-      .getOne();
+
+    const existing = await this.metodoPagoRepository.findOne({
+      where: { nombre: nombreNormalizado }
+    });
+
 
     if (existing) {
       throw new BadRequestException(`El método de pago '${nombreNormalizado}' ya existe.`);
@@ -30,7 +28,8 @@ export class MetodosPagoService {
 
     // 3️⃣ Creamos y guardamos con el nombre limpio
     const metodoPago = this.metodoPagoRepository.create({ nombre: nombreNormalizado });
-    return await this.metodoPagoRepository.save(metodoPago);
+    const saved = await this.metodoPagoRepository.save(metodoPago);
+    return saved;
   }
 
   // 🔍 OBTENER TODOS
