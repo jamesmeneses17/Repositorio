@@ -8,7 +8,6 @@ import { MarcasModule } from './modules/catalogos_basicos/marcas/marcas.module';
 import { UnidadesMedidaModule } from './modules/catalogos_basicos/unidades-medida/unidades-medida.module';
 import { EspecificacionesModule } from './modules/catalogos_basicos/especificaciones/especificaciones.module';
 import { ProductosModule } from './modules/gestion_producto/productos/productos.module';
-import { ProductosCaracteristicasModule } from './modules/gestion_producto/productos-caracteristicas/productos-caracteristicas.module';
 import { InventarioModule } from './modules/gestion_producto/inventario/inventario.module';
 import { PreciosModule } from './modules/gestion_producto/precios/precios.module';
 import { TiposDocumentoModule } from './modules/cliente-administracion/tipos-documento/tipos-documento.module';
@@ -38,7 +37,6 @@ import { AuthModule } from './modules/auth/auth.module';
     UnidadesMedidaModule,
     EspecificacionesModule,
     ProductosModule,
-    ProductosCaracteristicasModule,
     InventarioModule,
     PreciosModule,
     TiposDocumentoModule,

@@ -1,4 +1,3 @@
-
 import {
     Controller,
     Get,
@@ -7,8 +6,9 @@ import {
     Param,
     Put,
     Delete,
-    Query,
-    BadRequestException
+    // Eliminamos @Query ya que no filtraremos por URL
+    // Query, 
+    // BadRequestException
 } from '@nestjs/common';
 import { ProductosService } from './productos.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
@@ -23,38 +23,22 @@ export class ProductosController {
         return this.productosService.create(dto);
     }
 
+    /**
+     * Devuelve TODOS los productos disponibles en la base de datos.
+     * Ya no acepta parámetros de filtro (subcategoriaId o categoriaId) en el query.
+     */
     @Get()
-    async findAll(
-        @Query('subcategoriaId') subcategoriaIdParam?: string,
-        @Query('categoriaId') categoriaIdParam?: string,
-
-    ) {
-        let filterSubId: number | undefined;
-        let filterCatId: number | undefined;
-
-
-        if (subcategoriaIdParam) {
-            const parsedId = parseInt(subcategoriaIdParam, 10);
-            if (isNaN(parsedId)) {
-                throw new BadRequestException('El parámetro subcategoriaId debe ser un número válido.');
-            }
-            filterSubId = parsedId;
-        }
-
-        if (!filterSubId && categoriaIdParam) {
-            const parsedId = parseInt(categoriaIdParam, 10);
-            if (isNaN(parsedId)) {
-                throw new BadRequestException('El parámetro categoriaId debe ser un número válido.');
-            }
-            filterCatId = parsedId;
-        }
-
-    return this.productosService.getProductosFiltrados(filterSubId, filterCatId);
+    async findAll() {
+        // ✅ CORRECCIÓN: Llamamos directamente a un método que devuelva todos.
+        // Asumo que tu servicio tiene un método llamado getAllProductos() o findAll().
+        // Si no existe, debes crearlo para que no aplique ninguna cláusula WHERE.
+        return this.productosService.getAllProductos();
     }
 
     @Get(':id')
     findOne(@Param('id') id: string) {
-        return this.productosService.findOneWithRelations(+id);
+        // Asumo que findOneWithRelations devuelve las relaciones (Categoría, Estado) para el formulario de edición.
+        return this.productosService.findOneWithRelations(+id); 
     }
 
     @Put(':id')

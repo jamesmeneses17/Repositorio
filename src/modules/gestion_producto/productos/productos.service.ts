@@ -21,12 +21,33 @@ export class ProductosService {
         return this.productosRepo.save(producto);
     }
 
-    async getProductosFiltrados(subcategoriaId?: number, categoriaId?: number): Promise<Producto[]> {
+    /**
+     * Devuelve TODOS los productos con sus relaciones clave cargadas.
+     * Este es el método usado por GET /productos en el controlador.
+     */
+ // En productos.service.ts
+async getAllProductos(): Promise<Producto[]> {
+        return this.productosRepo.find({
+            relations: [
+                'estado', 
+                'precios', 
+                'inventario',
+                'categoria', // 👈 ¡Relación directa a Categoria!
+            ], 
+        });
+    }
+    
+    // --------------------------------------------------------------------------------
+    // MÉTODOS DE FILTRADO Y DETALLE (Se mantienen para uso interno o futuro)
+    // --------------------------------------------------------------------------------
+
+    // Mantiene la lógica original de filtrado por subcategoría/categoría
+    async getProductosConFiltro(subcategoriaId?: number, categoriaId?: number): Promise<Producto[]> {
         const queryBuilder = this.productosRepo.createQueryBuilder('producto')
             .leftJoinAndSelect('producto.precios', 'precio')
             .leftJoinAndSelect('producto.inventario', 'inventario')
-            .where('producto.estado_id = :estado', { estado: 1 });
-
+            .leftJoinAndSelect('producto.estado', 'estado');
+            
         // Si se filtra por subcategoría o categoría, une explícitamente la tabla producto_caracteristicas
         if (subcategoriaId || categoriaId) {
             queryBuilder.innerJoin(
@@ -39,7 +60,6 @@ export class ProductosService {
         if (subcategoriaId) {
             queryBuilder.andWhere('caracteristica.subcategoria_id = :subcategoriaId', { subcategoriaId });
         } else if (categoriaId) {
-            // Une explícitamente la tabla subcategorias
             queryBuilder.innerJoin(
                 'subcategorias',
                 'subcategoria',
@@ -48,19 +68,13 @@ export class ProductosService {
             queryBuilder.andWhere('subcategoria.categoria_id = :categoriaId', { categoriaId });
         }
 
-        // Si usas Postgres y quieres evitar duplicados:
-        // queryBuilder.distinctOn(['producto.id']);
-
         return queryBuilder.getMany();
     }
 
-    async findAll(): Promise<Producto[]> {
-        return this.getProductosFiltrados();
-    }
-
-    async findOne(id: number): Promise<Producto> {
+    async findOneById(id: number): Promise<Producto> {
         const producto = await this.productosRepo.findOne({
             where: { id },
+            relations: ['estado'], // Relación base para edición y eliminación
         });
         if (!producto) {
             throw new NotFoundException(`Producto con id ${id} no encontrado`);
@@ -68,10 +82,11 @@ export class ProductosService {
         return producto;
     }
 
+    // Usado para cargar datos completos del producto, por ejemplo, en un formulario de edición
     async findOneWithRelations(id: number): Promise<Producto> {
         const producto = await this.productosRepo.findOne({
             where: { id },
-            relations: ['caracteristicas', 'precios', 'inventario'],
+            relations: ['caracteristicas', 'precios', 'inventario', 'estado'], 
         });
         if (!producto) {
             throw new NotFoundException(`Producto with ID ${id} not found`);
@@ -79,14 +94,15 @@ export class ProductosService {
         return producto;
     }
 
+
     async update(id: number, dto: UpdateProductoDto): Promise<Producto> {
-        const producto = await this.findOne(id);
+        const producto = await this.findOneById(id);
         Object.assign(producto, dto);
         return this.productosRepo.save(producto);
     }
 
     async remove(id: number): Promise<void> {
-        const producto = await this.findOne(id);
+        const producto = await this.findOneById(id);
         await this.productosRepo.remove(producto);
     }
 }
