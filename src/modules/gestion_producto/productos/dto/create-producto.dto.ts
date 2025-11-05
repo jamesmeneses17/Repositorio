@@ -22,4 +22,17 @@ export class CreateProductoDto {
   @IsNumber()
   @IsOptional()
   estadoId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  categoriaId?: number;
+
+  // Campos para inventario
+  @IsNumber()
+  @IsOptional()
+  stock?: number;
+
+  @IsOptional()
+  @IsString()
+  ubicacion?: string;
 }
