@@ -1,6 +1,7 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber, Min } from 'class-validator';
 
 export class CreateProductoDto {
+  // 📦 Datos básicos del producto
   @IsNotEmpty()
   @IsString()
   @MaxLength(150)
@@ -19,6 +20,7 @@ export class CreateProductoDto {
   @IsString()
   descripcion?: string;
 
+  // 🔗 Relaciones
   @IsNumber()
   @IsOptional()
   estadoId?: number;
@@ -27,16 +29,22 @@ export class CreateProductoDto {
   @IsOptional()
   categoriaId?: number;
 
-  // Campos para inventario
+  // 💰 Campos para precios
   @IsNumber()
-  @IsOptional() // O IsNotEmpty(), si el precio inicial es obligatorio
-  precio?: number; // Usaremos esto para crear el registro en la tabla 'precios'
+  @IsOptional() // o @IsNotEmpty() si el precio inicial es obligatorio
+  precio?: number; // Se usa para crear el registro en la tabla 'precios'
 
-  @IsNumber()
-  @IsOptional()
-  stock?: number; // Usaremos esto para crear el registro en la tabla 'inventario'
+  // 🏬 Campos para inventario
+  @IsNumber()
+  @IsOptional()
+  stock?: number; // Se usa para crear el registro en la tabla 'inventario'
 
-  @IsOptional()
-  @IsString()
-  ubicacion?: string; // Campo de la tabla 'inventario'
+  @IsOptional()
+  @IsString()
+  ubicacion?: string; // Campo de la tabla 'inventario'
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  stockMinimo?: number; // 🔑 NUEVO campo para definir el stock mínimo permitido
 }

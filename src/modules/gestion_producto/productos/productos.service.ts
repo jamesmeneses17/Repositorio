@@ -1,5 +1,3 @@
-// productos/productos.service.ts
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,125 +6,150 @@ import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
 
 // 🔑 IMPORTAR SERVICIOS RELACIONADOS
-import { InventarioService } from '../inventario/inventario.service'; 
+import { InventarioService } from '../inventario/inventario.service';
 import { PreciosService } from '../precios/precios.service';
 
+// 📌 UMBRAL FIJO DE STOCK MÍNIMO
+const MIN_STOCK_THRESHOLD = 5; // 🔑 valor fijo para definir stock bajo
+
+// 📌 TIPADO PARA LA RESPUESTA DE LA LISTA
+interface ProductoConStockCalculado extends Producto {
+  stock: number;
+  precio: number;
+  estado_stock: 'Suficiente' | 'Stock Bajo' | 'Agotado';
+}
 
 @Injectable()
 export class ProductosService {
-    constructor(
-        @InjectRepository(Producto)
-        private readonly productosRepo: Repository<Producto>,
-        // 🔑 INYECCIÓN DE DEPENDENCIAS REQUERIDAS
-        private readonly inventarioService: InventarioService,
-        private readonly preciosService: PreciosService,
-    ) { }
+  constructor(
+    @InjectRepository(Producto)
+    private readonly productosRepo: Repository<Producto>,
+    private readonly inventarioService: InventarioService,
+    private readonly preciosService: PreciosService,
+  ) {}
 
-    async create(dto: CreateProductoDto): Promise<Producto> {
-        // 1. Separar campos: (stock, ubicacion, precio) vs (productoData)
-        const { stock, ubicacion, precio, ...productoData } = dto;
-        
-        const dataToSave = {
-            ...productoData,
-            estadoId: productoData.estadoId || 1,
-        };
-        
-        // 2. Crear y Guardar producto principal
-        const producto = this.productosRepo.create(dataToSave);
-        const savedProducto = await this.productosRepo.save(producto);
-        const productoId = savedProducto.id;
+  // 🔹 CREATE (sin stockMinimo)
+  async create(dto: CreateProductoDto): Promise<Producto> {
+    // 1️⃣ Separar campos: (stock, ubicacion, precio)
+    const { stock, ubicacion, precio, ...productoData } = dto;
 
-        // 3. Crear Inventario (DELEGA LA TAREA)
-        if (stock !== undefined || ubicacion !== undefined) {
-            // Usamos el mismo método de actualización para el caso de creación inicial
-            await this.inventarioService.actualizarInventarioPorProductoId(
-                productoId, 
-                stock ?? 0, // Pasa 0 si no se define stock
-                ubicacion
-            );
-        }
+    // 2️⃣ Crear producto principal
+    const dataToSave = {
+      ...productoData,
+      estadoId: productoData.estadoId || 1,
+    };
 
-        // 4. Crear Precio (DELEGA LA TAREA)
-        if (precio !== undefined && precio !== null) {
-            // Usamos el mismo método de actualización para el caso de creación inicial
-            await this.preciosService.actualizarPrecioPorProductoId(productoId, precio);
-        }
-        
-        // 5. Devolver el producto completo con todas las relaciones
-        return this.findOneWithRelations(productoId); 
-    }
+    const producto = this.productosRepo.create(dataToSave);
+    const savedProducto = await this.productosRepo.save(producto);
+    const productoId = savedProducto.id;
 
-    async getAllProductos(): Promise<Producto[]> {
-        return this.productosRepo.find({
-            relations: [
-                'estado',
-                'precios',
-                'inventario',
-                'categoria',
-            ],
-        });
-    }
-    
-    // ... (getProductosConFiltro y findOneById se mantienen)
+    // 3️⃣ Crear/Actualizar Inventario (ya sin stockMinimo)
+    if (stock !== undefined || ubicacion !== undefined) {
+      await this.inventarioService.actualizarInventarioPorProductoId(
+        productoId,
+        stock ?? 0,
+        ubicacion,
+      );
+    }
 
-    async findOneWithRelations(id: number): Promise<Producto> {
-        const producto = await this.productosRepo.findOne({
-            where: { id },
-            // Asegúrate de cargar las relaciones para obtener stock y precio
-            relations: ['precios', 'inventario', 'estado', 'categoria'],
-        });
-        if (!producto) {
-            throw new NotFoundException(`Producto with ID ${id} not found`);
-        }
-        
-        // 🔑 INYECTAR stock y precio para que el frontend los lea fácilmente
-        // Se asume que el stock es el primer elemento del array (solo debe haber uno)
-(producto as any).stock = producto.inventario?.[0]?.stock || 0;        // Se asume que el precio es el primer elemento del array (deberías tener una lógica de 'precio actual')
-        (producto as any).precio = producto.precios?.[0]?.valor_unitario || 0; 
+    // 4️⃣ Crear precio inicial
+    if (precio !== undefined && precio !== null) {
+      await this.preciosService.actualizarPrecioPorProductoId(productoId, precio);
+    }
 
-        return producto;
-    }
+    return this.findOneWithRelations(productoId);
+  }
 
+  // 🚀 GET ALL con estado de stock calculado usando umbral fijo
+  async getAllProductos(): Promise<ProductoConStockCalculado[]> {
+    const productos = await this.productosRepo.find({
+      relations: ['estado', 'precios', 'inventario', 'categoria'],
+    });
 
-    async update(id: number, dto: UpdateProductoDto): Promise<Producto> {
-        // 1. Separar campos: (stock, ubicacion, precio) vs (productoData)
-        const { stock, ubicacion, precio, ...productoData } = dto;
-        
-        // 2. Actualizar el registro principal (tabla `productos`)
-        const productoPreloaded = await this.productosRepo.preload({
-            id: id,
-            ...productoData,
-        });
+    return productos.map((p) => {
+      const inventarioRegistro = p.inventario?.[0];
+      const stockActual = inventarioRegistro?.stock ?? 0;
 
-        if (!productoPreloaded) {
-            throw new NotFoundException(`Producto con ID ${id} no encontrado para actualizar.`);
-        }
+      // ✅ Usar el umbral fijo
+      const stockMinimo = MIN_STOCK_THRESHOLD;
 
-        // 3. Guardar la entidad fusionada en la tabla `productos`
-        await this.productosRepo.save(productoPreloaded);
+      let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
+      if (stockActual === 0) {
+        estadoStock = 'Agotado';
+      } else if (stockActual <= stockMinimo) {
+        estadoStock = 'Stock Bajo';
+      } else {
+        estadoStock = 'Disponible';
+      }
 
-        // --- 4. DELEGAR ACTUALIZACIÓN DE INVENTARIO ---
-                if (stock !== undefined || ubicacion !== undefined) {
-                        // Solo pasar valores definidos, nunca undefined
-                        await this.inventarioService.actualizarInventarioPorProductoId(
-                                id,
-                                stock ?? 0,
-                                ubicacion ?? undefined
-                        );
-                }
-        
-        // --- 5. DELEGAR ACTUALIZACIÓN DE PRECIOS ---
-        if (precio !== undefined && precio !== null) {
-            // Llama al método recién creado en PreciosService
-            await this.preciosService.actualizarPrecioPorProductoId(id, precio);
-        }
-        
-        // 6. Devolver el producto completo con todas las relaciones cargadas
-        return this.findOneWithRelations(id); 
-    }
+      const precioActual = p.precios?.[0]?.valor_unitario ?? 0;
 
-    async remove(id: number): Promise<void> {
-        const producto = await this.findOneWithRelations(id);
-        await this.productosRepo.remove(producto);
-    }
+      return {
+        ...p,
+        stock: stockActual,
+        precio: precioActual,
+        estado_stock: estadoStock,
+        stockMinimo: stockMinimo, // opcional si el frontend lo usa
+      } as ProductoConStockCalculado;
+    });
+  }
+
+  // 🔍 GET ONE con relaciones
+  async findOneWithRelations(id: number): Promise<Producto> {
+    const producto = await this.productosRepo.findOne({
+      where: { id },
+      relations: ['precios', 'inventario', 'estado', 'categoria'],
+    });
+
+    if (!producto) {
+      throw new NotFoundException(`Producto con ID ${id} no encontrado.`);
+    }
+
+    const inventarioRegistro = producto.inventario?.[0];
+    (producto as any).stock = inventarioRegistro?.stock || 0;
+    (producto as any).precio = producto.precios?.[0]?.valor_unitario || 0;
+
+    return producto;
+  }
+
+  // 🔹 UPDATE (sin stockMinimo)
+  async update(id: number, dto: UpdateProductoDto): Promise<Producto> {
+    // 1️⃣ Separar campos
+    const { stock, ubicacion, precio, ...productoData } = dto;
+
+    // 2️⃣ Preload del producto base
+    const productoPreloaded = await this.productosRepo.preload({
+      id,
+      ...productoData,
+    });
+
+    if (!productoPreloaded) {
+      throw new NotFoundException(`Producto con ID ${id} no encontrado para actualizar.`);
+    }
+
+    // 3️⃣ Guardar producto principal
+    await this.productosRepo.save(productoPreloaded);
+
+    // 4️⃣ Actualizar inventario (sin stock mínimo)
+    if (stock !== undefined || ubicacion !== undefined) {
+      await this.inventarioService.actualizarInventarioPorProductoId(
+        id,
+        typeof stock === 'number' ? stock : 0,
+        typeof ubicacion === 'string' ? ubicacion : undefined,
+      );
+    }
+
+    // 5️⃣ Actualizar precio
+    if (precio !== undefined && precio !== null) {
+      await this.preciosService.actualizarPrecioPorProductoId(id, precio);
+    }
+
+    return this.findOneWithRelations(id);
+  }
+
+  // 🔹 DELETE
+  async remove(id: number): Promise<void> {
+    const producto = await this.findOneWithRelations(id);
+    await this.productosRepo.remove(producto);
+  }
 }

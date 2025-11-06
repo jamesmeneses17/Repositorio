@@ -25,7 +25,7 @@ export class ProductosController {
     }
 
     @Get()
-    async findAll() {
+    async findAll(): Promise<any> {
         return this.productosService.getAllProductos();
     }
 
