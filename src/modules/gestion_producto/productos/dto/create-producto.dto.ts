@@ -29,10 +29,14 @@ export class CreateProductoDto {
 
   // Campos para inventario
   @IsNumber()
-  @IsOptional()
-  stock?: number;
+  @IsOptional() // O IsNotEmpty(), si el precio inicial es obligatorio
+  precio?: number; // Usaremos esto para crear el registro en la tabla 'precios'
 
-  @IsOptional()
-  @IsString()
-  ubicacion?: string;
+  @IsNumber()
+  @IsOptional()
+  stock?: number; // Usaremos esto para crear el registro en la tabla 'inventario'
+
+  @IsOptional()
+  @IsString()
+  ubicacion?: string; // Campo de la tabla 'inventario'
 }

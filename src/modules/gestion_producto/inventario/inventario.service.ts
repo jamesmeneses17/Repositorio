@@ -1,48 +1,79 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Inventario } from './entities/inventario.entity';
-import { CreateInventarioDto } from './dto/create-inventario.dto';
-import { UpdateInventarioDto } from './dto/update-inventario.dto';
+// Importa tus DTOs si los usas en los métodos CRUD (aquí usamos Partial<Inventario> como ejemplo)
+// import { CreateInventarioDto } from './dto/create-inventario.dto';
+// import { UpdateInventarioDto } from './dto/update-inventario.dto';
 
 @Injectable()
 export class InventarioService {
-  constructor(
-    @InjectRepository(Inventario)
-    private readonly repo: Repository<Inventario>,
-  ) {}
+    constructor(
+        @InjectRepository(Inventario)
+        private readonly repo: Repository<Inventario>,
+    ) {}
 
-  create(dto: CreateInventarioDto) {
-    const nuevo = this.repo.create({
-      producto: { id: dto.producto_id } as any,
-      stock: dto.stock,
-      ubicacion: dto.ubicacion,
-    });
-    return this.repo.save(nuevo);
-  }
+    // ================= MÉTODOS CRUD PARA EL CONTROLLER =================
+    async create(dto: Partial<Inventario>): Promise<Inventario> {
+        const inventario = this.repo.create(dto);
+        return this.repo.save(inventario);
+    }
 
-  findAll() {
-    return this.repo.find({ relations: ['producto'] });
-  }
+    async findAll(): Promise<Inventario[]> {
+        return this.repo.find();
+    }
 
-  findOne(id: number) {
-    return this.repo.findOne({ where: { id }, relations: ['producto'] });
-  }
+    async findOne(id: number): Promise<Inventario> {
+        const inventario = await this.repo.findOne({ where: { id } });
+        if (!inventario) {
+            throw new NotFoundException(`Inventario con id ${id} no encontrado`);
+        }
+        return inventario;
+    }
 
-  async update(id: number, dto: UpdateInventarioDto) {
-    await this.repo.update(id, {
-      producto: dto.producto_id ? ({ id: dto.producto_id } as any) : undefined,
-      stock: dto.stock,
-      ubicacion: dto.ubicacion,
-    });
-    return this.findOne(id);
-  }
+    async update(id: number, dto: Partial<Inventario>): Promise<Inventario> {
+        // Nota: Usar preload es más seguro si manejas relaciones complejas
+        const inventario = await this.findOne(id);
+        Object.assign(inventario, dto);
+        return this.repo.save(inventario);
+    }
 
-  async remove(id: number) {
-    const entity = await this.findOne(id);
-    if (!entity) {
-      throw new Error(`Inventario with id ${id} not found`);
-    }
-    return this.repo.remove(entity);
-  }
+    async remove(id: number): Promise<void> {
+        const inventario = await this.findOne(id);
+        await this.repo.remove(inventario);
+    }
+
+// =========================================================================
+// ✅ MÉTODO REQUERIDO POR PRODUCTOS SERVICE (Única implementación)
+// =========================================================================
+
+    async actualizarInventarioPorProductoId(
+        productoId: number, 
+        stock?: number, 
+        ubicacion?: string
+    ): Promise<Inventario> {
+        
+        // 1. Buscar el registro de inventario asociado a este producto
+        let inventario = await this.repo.findOne({ 
+            where: { producto: { id: productoId } } 
+        });
+
+		if (!inventario) {
+			// 2. Si no existe, creamos el registro inicial
+			inventario = this.repo.create({
+				producto: { id: productoId } as any,
+				stock: stock ?? 0,
+				ubicacion: typeof ubicacion === 'string' ? ubicacion : undefined,
+			});
+        } else {
+            // 3. Si existe, actualizamos solo si el valor viene definido
+            if (stock !== undefined && stock !== null) {
+                inventario.stock = stock;
+            }
+			if (typeof ubicacion === 'string') {
+				inventario.ubicacion = ubicacion;
+			}
+        }
+        return this.repo.save(inventario);
+    }
 }
