@@ -24,6 +24,16 @@ export class ProductosController {
     create(@Body() dto: CreateProductoDto) {
         return this.productosService.create(dto);
     }
+    // Endpoint de estadísticas globales de productos
+    @Get('stats')
+    async getStats() {
+        try {
+            const stats = await this.productosService.getStats();
+            return stats;
+        } catch (err) {
+            return { error: 'Error al obtener estadísticas de productos.' };
+        }
+    }
 
     @Get()
     async findAll(

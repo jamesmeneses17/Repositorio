@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Producto } from './entities/producto.entity';
@@ -98,18 +98,57 @@ export class ProductosService {
     return { data: paginados, total };
   }
 
+      // Estadísticas globales de productos por estado_stock
+      async getStats() {
+          // Obtener todos los productos y calcular estado_stock
+          const productosRaw = await this.productosRepo.createQueryBuilder('producto')
+              .leftJoinAndSelect('producto.inventario', 'inventario')
+              .leftJoinAndSelect('producto.precios', 'precios', 'precios.fecha_fin IS NULL')
+              .getMany();
+
+          // Calcular estado_stock para cada producto
+          let total = 0, stockBajo = 0, agotado = 0;
+          for (const p of productosRaw) {
+              const inventarioRegistro = p.inventario?.[0];
+              const stockActual = inventarioRegistro?.stock ?? 0;
+              let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
+              if (stockActual === 0) estadoStock = 'Agotado';
+              else if (stockActual <= MIN_STOCK_THRESHOLD) estadoStock = 'Stock Bajo';
+              else estadoStock = 'Disponible';
+              total++;
+              if (estadoStock === 'Stock Bajo') stockBajo++;
+              if (estadoStock === 'Agotado') agotado++;
+          }
+          return { total, stockBajo, agotado };
+      }
   // 🔹 CREATE
   async create(dto: CreateProductoDto): Promise<Producto> {
-    const { stock, ubicacion, precio, ...productoData } = dto;
+    const { stock, ubicacion, precio, codigo, nombre, ...productoData } = dto;
+    // Validar si el código ya existe
+    if (codigo) {
+      const existeCodigo = await this.productosRepo.findOne({ where: { codigo } });
+      if (existeCodigo) {
+        throw new ConflictException({ message: 'El producto ya existe' });
+      }
+    }
+    // Validar si el nombre ya existe (case-insensitive)
+    if (nombre) {
+      const existeNombre = await this.productosRepo.createQueryBuilder('producto')
+        .where('LOWER(producto.nombre) = LOWER(:nombre)', { nombre })
+        .getOne();
+      if (existeNombre) {
+        throw new ConflictException({ message: 'El producto ya existe' });
+      }
+    }
     const dataToSave = {
       ...productoData,
+      codigo,
+      nombre,
       estadoId: productoData.estadoId || 1,
     };
-
     const producto = this.productosRepo.create(dataToSave);
     const savedProducto = await this.productosRepo.save(producto);
     const productoId = savedProducto.id;
-
     if (stock !== undefined || ubicacion !== undefined) {
       await this.inventarioService.actualizarInventarioPorProductoId(
         productoId,
@@ -117,11 +156,9 @@ export class ProductosService {
         ubicacion,
       );
     }
-
     if (precio !== undefined && precio !== null) {
       await this.preciosService.actualizarPrecioPorProductoId(productoId, precio);
     }
-
     return this.findOneWithRelations(productoId);
   }
 
