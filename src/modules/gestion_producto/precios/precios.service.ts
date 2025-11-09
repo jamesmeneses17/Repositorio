@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Precio } from './entities/precio.entity';
@@ -39,15 +39,24 @@ export class PreciosService {
   }
 
   findOne(id: number) {
+    if (!Number.isFinite(id)) {
+      throw new BadRequestException('ID de precio inválido');
+    }
     return this.precioRepository.findOne({ where: { id } });
   }
 
   async update(id: number, dto: UpdatePrecioDto) {
+    if (!Number.isFinite(id)) {
+      throw new BadRequestException('ID de precio inválido');
+    }
     await this.precioRepository.update(id, dto);
     return this.findOne(id);
   }
 
   async remove(id: number) {
+    if (!Number.isFinite(id)) {
+      throw new BadRequestException('ID de precio inválido');
+    }
     const precio = await this.findOne(id);
     if (!precio) {
       throw new NotFoundException(`Precio con id ${id} no encontrado`);
@@ -62,6 +71,9 @@ export class PreciosService {
   }
 
   findOneWithRelations(id: number) {
+    if (!Number.isFinite(id)) {
+      throw new BadRequestException('ID de precio inválido');
+    }
     return this.precioRepository.findOne({
       where: { id },
       relations: ['producto', 'unidadMedida'],

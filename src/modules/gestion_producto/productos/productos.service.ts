@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Producto } from './entities/producto.entity';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
+
+// Entidad Precio para crear el registro inicial
+import { Precio } from '../precios/entities/precio.entity';
 
 // 🔑 Servicios relacionados
 import { InventarioService } from '../inventario/inventario.service';
@@ -31,6 +34,7 @@ export class ProductosService {
     private readonly productosRepo: Repository<Producto>,
     private readonly inventarioService: InventarioService,
     private readonly preciosService: PreciosService,
+    private readonly dataSource: DataSource,
   ) {}
 
 async getAllProductos(
@@ -124,7 +128,7 @@ async getAllProductos(
       }
   // 🔹 CREATE
   async create(dto: CreateProductoDto): Promise<Producto> {
-    const { stock, ubicacion, precio, codigo, nombre, ...productoData } = dto;
+    const { stock, ubicacion, precio, codigo, nombre, precio_costo, valor_unitario_inicial, ...productoData } = dto;
     // Validar si el código ya existe
     if (codigo) {
       const existeCodigo = await this.productosRepo.findOne({ where: { codigo } });
@@ -141,15 +145,46 @@ async getAllProductos(
         throw new ConflictException({ message: 'El producto ya existe' });
       }
     }
-    const dataToSave = {
-      ...productoData,
-      codigo,
-      nombre,
-      estadoId: productoData.estadoId || 1,
-    };
-    const producto = this.productosRepo.create(dataToSave);
-    const savedProducto = await this.productosRepo.save(producto);
-    const productoId = savedProducto.id;
+    // Usar transacción para crear producto y precio inicial de forma atómica
+    const nuevoProducto = await this.dataSource.transaction(async (manager) => {
+      const productoRepo = manager.getRepository(Producto);
+      const precioRepo = manager.getRepository(Precio);
+
+      const dataToSave = {
+        ...productoData,
+        codigo,
+        nombre,
+        precio_costo: precio_costo ?? 0,
+        estadoId: productoData.estadoId || 1,
+      };
+
+      const producto = productoRepo.create(dataToSave);
+      const savedProducto = await productoRepo.save(producto);
+
+      // Crear precio inicial si se proporcionó
+      const valorInicial =
+        valor_unitario_inicial !== undefined && valor_unitario_inicial !== null
+          ? valor_unitario_inicial
+          : precio;
+
+      if (valorInicial !== undefined && valorInicial !== null) {
+        const precioInicial = precioRepo.create({
+          producto: { id: savedProducto.id } as any,
+          productoId: savedProducto.id,
+          valor_unitario: valorInicial,
+          descuento: 0,
+          en_promocion: false,
+          fecha_inicio: new Date().toISOString().slice(0, 10),
+          fecha_fin: null,
+        });
+        await precioRepo.save(precioInicial);
+      }
+
+      return savedProducto;
+    });
+
+    const productoId = nuevoProducto.id;
+
     if (stock !== undefined || ubicacion !== undefined) {
       await this.inventarioService.actualizarInventarioPorProductoId(
         productoId,
@@ -157,9 +192,7 @@ async getAllProductos(
         ubicacion,
       );
     }
-    if (precio !== undefined && precio !== null) {
-      await this.preciosService.actualizarPrecioPorProductoId(productoId, precio);
-    }
+
     return this.findOneWithRelations(productoId);
   }
 

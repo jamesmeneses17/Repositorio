@@ -32,7 +32,17 @@ export class CreateProductoDto {
   // 💰 Campos para precios
   @IsNumber()
   @IsOptional() // o @IsNotEmpty() si el precio inicial es obligatorio
-  precio?: number; // Se usa para crear el registro en la tabla 'precios'
+  precio?: number; // Se mantiene por compatibilidad (precio de venta)
+
+  // ✅ Costo de compra para la tabla 'productos'
+  @IsNumber()
+  @IsOptional()
+  precio_costo?: number;
+
+  // ✅ Precio base de venta inicial (para crear registro en 'precios')
+  @IsNumber()
+  @IsOptional()
+  valor_unitario_inicial?: number;
 
   // 🏬 Campos para inventario
   @IsNumber()
