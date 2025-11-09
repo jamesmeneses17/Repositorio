@@ -73,6 +73,7 @@ export class ProductosController {
     // 🔑 CAMBIO CLAVE: Cambiamos @Put por @Patch para que coincida con el frontend
     @Patch(':id')
     update(@Param('id') id: string, @Body() dto: UpdateProductoDto) {
+        this.logger.log(`PATCH /productos/${id} body: ${JSON.stringify(dto)}`);
         return this.productosService.update(+id, dto);
     }
 

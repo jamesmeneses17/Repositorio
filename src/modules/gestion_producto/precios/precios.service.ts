@@ -30,7 +30,13 @@ export class PreciosService {
   // =========================================================================
 
   create(dto: CreatePrecioDto) {
-    const nuevoPrecio = this.precioRepository.create(dto);
+    // Mapear campo del DTO (descuento_porcentaje) al nombre de columna real (descuento)
+    const payload: any = { ...dto };
+    if (payload.descuento_porcentaje !== undefined) {
+      payload.descuento = payload.descuento_porcentaje;
+      delete payload.descuento_porcentaje;
+    }
+    const nuevoPrecio = this.precioRepository.create(payload);
     return this.precioRepository.save(nuevoPrecio);
   }
 
@@ -49,7 +55,13 @@ export class PreciosService {
     if (!Number.isFinite(id)) {
       throw new BadRequestException('ID de precio inválido');
     }
-    await this.precioRepository.update(id, dto);
+    // Mapear dto para evitar campos que no existan en la entidad
+    const payload: any = { ...dto };
+    if (payload.descuento_porcentaje !== undefined) {
+      payload.descuento = payload.descuento_porcentaje;
+      delete payload.descuento_porcentaje;
+    }
+    await this.precioRepository.update(id, payload);
     return this.findOne(id);
   }
 

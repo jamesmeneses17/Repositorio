@@ -6,6 +6,7 @@ import {
   Param, 
   Delete, 
   Put, 
+  Patch,
   Query,
   ParseIntPipe,
   DefaultValuePipe,
@@ -50,6 +51,15 @@ export class PreciosController {
   // Actualizar un precio
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePrecioDto) {
+    // Log temporal para diagnosticar payloads desde frontend
+    console.log(`[PreciosController] PUT /precios/${id} body:`, dto);
+    return this.preciosService.update(id, dto);
+  }
+
+  // Aceptar PATCH también por compatibilidad con el frontend
+  @Patch(':id')
+  patchUpdate(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePrecioDto) {
+    console.log(`[PreciosController] PATCH /precios/${id} body:`, dto);
     return this.preciosService.update(id, dto);
   }
 
