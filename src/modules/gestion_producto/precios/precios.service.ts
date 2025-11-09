@@ -15,6 +15,9 @@ export interface PrecioConProductoCalculadoDto extends Precio {
   costo: number;
   precioBase: number;
   precioFinal: number;
+  // Campos adicionales para compatibilidad con frontend
+  descuento_porcentaje?: number;
+  valor_final?: number;
   estado: 'Normal' | 'En Promoción' | 'Vencido';
 }
 
@@ -126,7 +129,7 @@ export class PreciosService {
     const descuentoPorcentaje = precio.descuento || 0;
     const descuentoFactor = descuentoPorcentaje / 100;
 
-    const precioFinal = precio.valor_unitario * (1 - descuentoFactor);
+  const precioFinal = precio.valor_unitario * (1 - descuentoFactor);
 
     // 🔎 Determinar estado (vigencia/promoción)
     const hoy = new Date();
@@ -138,15 +141,20 @@ export class PreciosService {
       estado = 'En Promoción';
     }
 
-    return {
+    const mapped: any = {
       ...precio,
       // 🔑 Mapeo hacia el frontend
       costo: precio.producto?.precio_costo || 0,
       precioBase: precio.valor_unitario,
       precioFinal: Math.round(precioFinal * 100) / 100,
+      // Campos que el frontend espera
+      descuento_porcentaje: precio.descuento || 0,
+      valor_final: Math.round(precioFinal * 100) / 100,
       estado,
       producto: precio.producto,
-    } as PrecioConProductoCalculadoDto;
+    };
+
+    return mapped as PrecioConProductoCalculadoDto;
   }
 
   // =========================================================================
