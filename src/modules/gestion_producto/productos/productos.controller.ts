@@ -8,6 +8,7 @@ import {
     Patch, // <-- 🔑 IMPORTAMOS PATCH
     Delete,
     Query,
+    Logger,
     // Eliminamos @Query ya que no filtraremos por URL
     // Query, 
     // BadRequestException
@@ -18,6 +19,7 @@ import { UpdateProductoDto } from './dto/update-producto.dto';
 
 @Controller('productos')
 export class ProductosController {
+    private readonly logger = new Logger('ProductosController');
     constructor(private readonly productosService: ProductosService) { }
 
     @Post()
@@ -43,13 +45,24 @@ export class ProductosController {
         @Query('search') search: string = '',
         @Query('estado_stock') estado_stock: string = '', // El filtro del frontend
     ) {
-        const productos = await this.productosService.getAllProductos(
-            parseInt(page),
-            parseInt(limit),
-            search,
-            estado_stock,
-        );
-        return productos; // Devuelve { data: Producto[], total: number }
+        try {
+            const pageNum = Number.parseInt(page as any, 10);
+            const limitNum = Number.parseInt(limit as any, 10);
+            const safePage = Number.isNaN(pageNum) || pageNum < 1 ? 1 : pageNum;
+            const safeLimit = Number.isNaN(limitNum) || limitNum < 1 ? 5 : limitNum;
+
+            const productos = await this.productosService.getAllProductos(
+                safePage,
+                safeLimit,
+                search,
+                estado_stock,
+            );
+            return productos; // Devuelve { data: Producto[], total: number }
+        } catch (err) {
+            this.logger.error('Error en GET /productos', err?.stack || err);
+            // Re-lanzamos para que Nest genere el 500 estándar, pero ya quedó logueado
+            throw err;
+        }
     }
 
     @Get(':id')

@@ -1,85 +1,187 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { Precio } from './entities/precio.entity';
 import { CreatePrecioDto } from './dto/create-precio.dto';
 import { UpdatePrecioDto } from './dto/update-precio.dto';
 
+// 📦 Tipados auxiliares
+export interface PaginacionResponse<T> {
+  data: T[];
+  total: number;
+}
+
+export interface PrecioConProductoCalculadoDto extends Precio {
+  costo: number;
+  precioBase: number;
+  precioFinal: number;
+  estado: 'Normal' | 'En Promoción' | 'Vencido';
+}
+
 @Injectable()
 export class PreciosService {
-    constructor(
-        @InjectRepository(Precio)
-        private readonly precioRepository: Repository<Precio>,
-    ) {}
+  constructor(
+    @InjectRepository(Precio)
+    private readonly precioRepository: Repository<Precio>,
+  ) {}
 
-    create(dto: CreatePrecioDto) {
-        const nuevoPrecio = this.precioRepository.create(dto);
-        return this.precioRepository.save(nuevoPrecio);
-    }
+  // =========================================================================
+  // CRUD BÁSICO
+  // =========================================================================
 
-    findAll() {
-        return this.precioRepository.find();
-    }
+  create(dto: CreatePrecioDto) {
+    const nuevoPrecio = this.precioRepository.create(dto);
+    return this.precioRepository.save(nuevoPrecio);
+  }
 
-    findOne(id: number) {
-        return this.precioRepository.findOne({
-            where: { id },
-        });
-    }
+  findAll() {
+    return this.precioRepository.find();
+  }
 
-    async update(id: number, dto: UpdatePrecioDto) {
-        await this.precioRepository.update(id, dto);
-        return this.findOne(id);
-    }
+  findOne(id: number) {
+    return this.precioRepository.findOne({ where: { id } });
+  }
 
-    async remove(id: number) {
-        const precio = await this.findOne(id);
-        if (!precio) {
-            throw new NotFoundException(`Precio con id ${id} no encontrado`);
-        }
-        return this.precioRepository.remove(precio);
-    }
+  async update(id: number, dto: UpdatePrecioDto) {
+    await this.precioRepository.update(id, dto);
+    return this.findOne(id);
+  }
 
-    findAllWithRelations() {
-        return this.precioRepository.find({
-            relations: ['producto', 'unidadMedida'],
-        });
-    }
+  async remove(id: number) {
+    const precio = await this.findOne(id);
+    if (!precio) {
+      throw new NotFoundException(`Precio con id ${id} no encontrado`);
+    }
+    return this.precioRepository.remove(precio);
+  }
 
-    findOneWithRelations(id: number) {
-        return this.precioRepository.findOne({
-            where: { id },
-            relations: ['producto', 'unidadMedida'],
-        });
-    }
+  findAllWithRelations() {
+    return this.precioRepository.find({
+      relations: ['producto', 'unidadMedida'],
+    });
+  }
 
-// =========================================================================
-// ✅ MÉTODO REQUERIDO PARA GESTIÓN DESDE ProductosService
-// =========================================================================
-    /**
-     * Busca el último registro de precio asociado al producto y lo actualiza,
-     * o crea un registro nuevo si no existe.
-     */
-    async actualizarPrecioPorProductoId(
-        productoId: number, 
-        nuevoValor: number
-    ): Promise<Precio> {
-        // 1. Buscar el registro de precio más reciente (o el que se desea actualizar)
-        let precioRegistro = await this.precioRepository.findOne({ 
-            where: { producto: { id: productoId } },
-            order: { id: 'DESC' }
-        });
+  findOneWithRelations(id: number) {
+    return this.precioRepository.findOne({
+      where: { id },
+      relations: ['producto', 'unidadMedida'],
+    });
+  }
 
-        if (!precioRegistro) {
-            precioRegistro = this.precioRepository.create({
-                producto: { id: productoId } as any,
-                valor_unitario: nuevoValor,
-                fecha_inicio: new Date().toISOString().slice(0, 10), // formato YYYY-MM-DD
-                fecha_fin: null,
-            });
-        } else {
-            precioRegistro.valor_unitario = nuevoValor;
-        }
-        return this.precioRepository.save(precioRegistro);
-    }
+  // =========================================================================
+  // ✅ MÉTODO USADO DESDE ProductosService
+  // =========================================================================
+  async actualizarPrecioPorProductoId(
+    productoId: number,
+    nuevoValor: number,
+  ): Promise<Precio> {
+    let precioRegistro = await this.precioRepository.findOne({
+      where: { producto: { id: productoId } },
+      order: { id: 'DESC' },
+    });
+
+    if (!precioRegistro) {
+      precioRegistro = this.precioRepository.create({
+        producto: { id: productoId } as any,
+        valor_unitario: nuevoValor,
+        fecha_inicio: new Date().toISOString().slice(0, 10),
+        fecha_fin: null,
+      });
+    } else {
+      precioRegistro.valor_unitario = nuevoValor;
+    }
+    return this.precioRepository.save(precioRegistro);
+  }
+
+  // =========================================================================
+  // ✅ LÓGICA DE CÁLCULO Y MAPEADO
+  // =========================================================================
+  private calcularPrecioFinalYEstado(
+    precio: Precio,
+  ): PrecioConProductoCalculadoDto {
+    const descuentoPorcentaje = precio.descuento || 0;
+    const descuentoFactor = descuentoPorcentaje / 100;
+
+    const precioFinal = precio.valor_unitario * (1 - descuentoFactor);
+
+    // 🔎 Determinar estado (vigencia/promoción)
+    const hoy = new Date();
+    let estado: 'Normal' | 'En Promoción' | 'Vencido' = 'Normal';
+
+    if (precio.fecha_fin && new Date(precio.fecha_fin) < hoy) {
+      estado = 'Vencido';
+    } else if (descuentoPorcentaje > 0) {
+      estado = 'En Promoción';
+    }
+
+    return {
+      ...precio,
+      // 🔑 Mapeo hacia el frontend
+      costo: precio.producto?.precio_costo || 0,
+      precioBase: precio.valor_unitario,
+      precioFinal: Math.round(precioFinal * 100) / 100,
+      estado,
+      producto: precio.producto,
+    } as PrecioConProductoCalculadoDto;
+  }
+
+  // =========================================================================
+  // ✅ PAGINACIÓN CON CÁLCULO Y RELACIONES
+  // =========================================================================
+  async findAllPaginated(
+    page = 1,
+    limit = 10,
+    search = '',
+  ): Promise<PaginacionResponse<PrecioConProductoCalculadoDto>> {
+    const skip = (page - 1) * limit;
+
+    const [precios, total] = await this.precioRepository.findAndCount({
+      where: search
+        ? [
+            { producto: { nombre: ILike(`%${search}%`) } },
+            { producto: { codigo: ILike(`%${search}%`) } },
+          ]
+        : {},
+      relations: ['producto'],
+      order: { id: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    const dataCalculada = precios.map((p) =>
+      this.calcularPrecioFinalYEstado(p),
+    );
+
+    return { data: dataCalculada, total };
+  }
+
+  // =========================================================================
+  // ✅ ESTADÍSTICAS GLOBALES DE PRECIOS
+  // =========================================================================
+  async getStats() {
+    const precios = await this.precioRepository.find({
+      relations: ['producto'],
+    });
+
+    let total = precios.length;
+    let enPromocion = 0;
+    let vencidos = 0;
+    let promedio = 0;
+
+    for (const p of precios) {
+      const calculado = this.calcularPrecioFinalYEstado(p);
+      promedio += calculado.precioFinal;
+      if (calculado.estado === 'En Promoción') enPromocion++;
+      if (calculado.estado === 'Vencido') vencidos++;
+    }
+
+    promedio = total > 0 ? Math.round((promedio / total) * 100) / 100 : 0;
+
+    return {
+      total,
+      enPromocion,
+      vencidos,
+      promedio,
+    };
+  }
 }

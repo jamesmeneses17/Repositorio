@@ -33,70 +33,71 @@ export class ProductosService {
     private readonly preciosService: PreciosService,
   ) {}
 
-  // 🚀 GET ALL con estado de stock calculado, paginación y filtros
-  async getAllProductos(
-    page: number = 1,
-    limit: number = 5,
-    search: string = '',
-    estado_stock: string = '',
-  ): Promise<PaginacionResponse<ProductoConStockCalculado>> {
-    // 1. Obtener todos los productos que cumplen el filtro de búsqueda
-    const query = this.productosRepo.createQueryBuilder('producto');
-    query
-      .leftJoinAndSelect('producto.estado', 'estado')
-      .leftJoinAndSelect('producto.categoria', 'categoria')
-      .leftJoinAndSelect('producto.inventario', 'inventario')
-      .leftJoinAndSelect('producto.precios', 'precios', 'precios.fecha_fin IS NULL')
-      .orderBy('producto.id', 'DESC');
+async getAllProductos(
+  page: number = 1,
+  limit: number = 5,
+  search: string = '',
+  estado_stock: string = '',
+): Promise<PaginacionResponse<ProductoConStockCalculado>> {
+  // 1. Construir query base
+  const query = this.productosRepo.createQueryBuilder('producto');
+  query
+    .leftJoinAndSelect('producto.estado', 'estado')
+    .leftJoinAndSelect('producto.categoria', 'categoria')
+    .leftJoinAndSelect('producto.inventario', 'inventario')
+    .leftJoinAndSelect('producto.precios', 'precios', 'precios.fecha_fin IS NULL')
+    .orderBy('producto.id', 'DESC');
 
-    if (search) {
-      query.andWhere(
-        '(producto.nombre LIKE :search OR producto.codigo LIKE :search)',
-        { search: `%${search}%` },
-      );
-    }
-
-    // 2. Obtener todos los productos (sin paginar aún)
-    const productosRaw = await query.getMany();
-
-    // 3. Calcular estado de stock y precio actual
-    const productosCalculados = productosRaw.map((p) => {
-      const inventarioRegistro = p.inventario?.[0];
-      const stockActual = inventarioRegistro?.stock ?? 0;
-      const stockMinimo = MIN_STOCK_THRESHOLD;
-
-      let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
-      if (stockActual === 0) estadoStock = 'Agotado';
-      else if (stockActual <= stockMinimo) estadoStock = 'Stock Bajo';
-      else estadoStock = 'Disponible';
-
-      const precioActual = p.precios?.[0]?.valor_unitario ?? 0;
-
-      return {
-        ...p,
-        stock: stockActual,
-        precio: precioActual,
-        estado_stock: estadoStock,
-        stockMinimo,
-      } as ProductoConStockCalculado;
-    });
-
-    // 4. Filtrar por estado_stock (en memoria)
-    let productosFiltrados = productosCalculados;
-    if (estado_stock && estado_stock !== '') {
-      productosFiltrados = productosCalculados.filter(
-        (p) => p.estado_stock === estado_stock,
-      );
-    }
-
-    // 5. Paginar sobre el array filtrado
-    const total = productosFiltrados.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginados = productosFiltrados.slice(start, end);
-
-    return { data: paginados, total };
+  if (search) {
+    query.andWhere(
+      '(producto.nombre LIKE :search OR producto.codigo LIKE :search)',
+      { search: `%${search}%` },
+    );
   }
+
+  // 2. Obtener resultados de base de datos
+  const productosRaw = await query.getMany();
+
+  // 3. Calcular stock y usar precio de costo (NO precio de venta)
+  const productosCalculados = productosRaw.map((p) => {
+    const inventarioRegistro = p.inventario?.[0];
+    const stockActual = inventarioRegistro?.stock ?? 0;
+    const stockMinimo = MIN_STOCK_THRESHOLD;
+
+    let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
+    if (stockActual === 0) estadoStock = 'Agotado';
+    else if (stockActual <= stockMinimo) estadoStock = 'Stock Bajo';
+    else estadoStock = 'Disponible';
+
+    // ✅ Aquí el cambio: usar precio_costo directamente
+    const precioActual = p.precio_costo ?? 0;
+
+    return {
+      ...p,
+      stock: stockActual,
+      precio: precioActual, // ← este campo ahora es costo
+      estado_stock: estadoStock,
+      stockMinimo,
+    } as ProductoConStockCalculado;
+  });
+
+  // 4. Filtrar por estado_stock si aplica
+  let productosFiltrados = productosCalculados;
+  if (estado_stock && estado_stock !== '') {
+    productosFiltrados = productosCalculados.filter(
+      (p) => p.estado_stock === estado_stock,
+    );
+  }
+
+  // 5. Paginación
+  const total = productosFiltrados.length;
+  const start = (page - 1) * limit;
+  const end = start + limit;
+  const paginados = productosFiltrados.slice(start, end);
+
+  return { data: paginados, total };
+}
+
 
       // Estadísticas globales de productos por estado_stock
       async getStats() {
