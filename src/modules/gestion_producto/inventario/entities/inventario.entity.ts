@@ -11,6 +11,12 @@ export class Inventario {
     @Column({ type: 'int', default: 0 })
     stock: number;
 
+    @Column({ type: 'int', default: 0 })
+    compras: number;
+
+    @Column({ type: 'int', default: 0 })
+    ventas: number;
+
     // ❌ CAMPO ELIMINADO: 'stock_minimo'
     // Se elimina porque no existe en la BD y usaremos un umbral fijo en el servicio.
 

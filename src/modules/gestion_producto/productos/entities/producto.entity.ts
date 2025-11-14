@@ -1,6 +1,6 @@
 // src/modulos/gestion_producto/productos/entities/producto.entity.ts
 
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, OneToOne, OneToMany, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Inventario } from '../../inventario/entities/inventario.entity';
 import { Estado } from '../../../catalogos_basicos/estados/entities/estado.entity';
 import { Precio } from '../../precios/entities/precio.entity';
@@ -43,9 +43,12 @@ export class Producto {
   @JoinColumn({ name: 'categoria_id' })
   categoria: Categoria;
 
-  // RELACIONES
-  @OneToMany(() => Inventario, (inv) => inv.producto)
-  inventario: Inventario[];
+	// RELACIONES
+	// Un producto tiene un único registro de inventario (one-to-one).
+	// La entidad `Inventario` es la que contiene la columna `producto_id` (lado propietario),
+	// por eso aquí mantenemos la relación inversa sin JoinColumn.
+	@OneToOne(() => Inventario, (inv) => inv.producto)
+	inventario: Inventario;
 
   @OneToMany(() => Precio, (precio) => precio.producto)
   precios: Precio[];

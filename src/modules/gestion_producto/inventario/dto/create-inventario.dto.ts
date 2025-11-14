@@ -10,4 +10,12 @@ export class CreateInventarioDto {
   @IsOptional()
   @IsString()
   ubicacion?: string;
+
+  @IsOptional()
+  @IsInt()
+  compras?: number;
+
+  @IsOptional()
+  @IsInt()
+  ventas?: number;
 }

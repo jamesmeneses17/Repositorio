@@ -25,6 +25,10 @@ export interface ProductoConStockCalculado extends Producto {
   stock: number;
   precio: number;
   estado_stock: 'Disponible' | 'Stock Bajo' | 'Agotado';
+  // Campos copiados desde la relación inventario para consumo directo del frontend
+  compras?: number;
+  ventas?: number;
+  ubicacion?: string | null;
 }
 
 @Injectable()
@@ -64,8 +68,8 @@ async getAllProductos(
 
   // 3. Calcular stock y usar precio de costo (NO precio de venta)
   const productosCalculados = productosRaw.map((p) => {
-    const inventarioRegistro = p.inventario?.[0];
-    const stockActual = inventarioRegistro?.stock ?? 0;
+  const inventarioRegistro = p.inventario; // ahora es objeto OneToOne
+  const stockActual = inventarioRegistro?.stock ?? 0;
     const stockMinimo = MIN_STOCK_THRESHOLD;
 
     let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
@@ -82,6 +86,10 @@ async getAllProductos(
       precio: precioActual, // ← este campo ahora es costo
       estado_stock: estadoStock,
       stockMinimo,
+      // Exponer compras/ventas/ubicacion en la raíz para facilitar consumo del frontend
+      compras: inventarioRegistro?.compras ?? 0,
+      ventas: inventarioRegistro?.ventas ?? 0,
+      ubicacion: inventarioRegistro?.ubicacion ?? null,
     } as ProductoConStockCalculado;
   });
 
@@ -114,7 +122,7 @@ async getAllProductos(
           // Calcular estado_stock para cada producto
           let total = 0, stockBajo = 0, agotado = 0;
           for (const p of productosRaw) {
-              const inventarioRegistro = p.inventario?.[0];
+              const inventarioRegistro = p.inventario;
               const stockActual = inventarioRegistro?.stock ?? 0;
               let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
               if (stockActual === 0) estadoStock = 'Agotado';
@@ -207,9 +215,13 @@ async getAllProductos(
       throw new NotFoundException(`Producto con ID ${id} no encontrado.`);
     }
 
-    const inventarioRegistro = producto.inventario?.[0];
-    (producto as any).stock = inventarioRegistro?.stock || 0;
-    (producto as any).precio = producto.precios?.[0]?.valor_unitario || 0;
+  const inventarioRegistro = producto.inventario;
+  (producto as any).stock = inventarioRegistro?.stock || 0;
+  (producto as any).precio = producto.precios?.[0]?.valor_unitario || 0;
+  // Copiar compras/ventas/ubicacion al objeto producto para el detalle
+  (producto as any).compras = inventarioRegistro?.compras ?? 0;
+  (producto as any).ventas = inventarioRegistro?.ventas ?? 0;
+  (producto as any).ubicacion = inventarioRegistro?.ubicacion ?? null;
 
     return producto;
   }
