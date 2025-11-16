@@ -21,15 +21,16 @@ export interface PaginacionResponse<T> {
   total: number;
 }
 
-export interface ProductoConStockCalculado extends Producto {
+export type ProductoConStockCalculado = Omit<Producto, 'compras'> & {
   stock: number;
   precio: number;
+  precio_venta: number;
   estado_stock: 'Disponible' | 'Stock Bajo' | 'Agotado';
   // Campos copiados desde la relación inventario para consumo directo del frontend
-  compras?: number;
+  compras: number;
   ventas?: number;
   ubicacion?: string | null;
-}
+};
 
 @Injectable()
 export class ProductosService {
@@ -77,13 +78,16 @@ async getAllProductos(
     else if (stockActual <= stockMinimo) estadoStock = 'Stock Bajo';
     else estadoStock = 'Disponible';
 
-    // ✅ Aquí el cambio: usar precio_costo directamente
+    // ✅ Aquí el cambio: usar precio_costo directamente para el campo 'precio' (costo)
     const precioActual = p.precio_costo ?? 0;
+    // Precio de venta efectivo (si existe un registro en 'precios' tomar su valor, sino usar el campo producto.precio_venta)
+    const precioVentaActual = p.precios?.[0]?.valor_unitario ?? p.precio_venta ?? 0;
 
     return {
       ...p,
       stock: stockActual,
       precio: precioActual, // ← este campo ahora es costo
+      precio_venta: precioVentaActual,
       estado_stock: estadoStock,
       stockMinimo,
       // Exponer compras/ventas/ubicacion en la raíz para facilitar consumo del frontend
@@ -136,7 +140,7 @@ async getAllProductos(
       }
   // 🔹 CREATE
   async create(dto: CreateProductoDto): Promise<Producto> {
-    const { stock, ubicacion, precio, codigo, nombre, precio_costo, valor_unitario_inicial, ...productoData } = dto;
+    const { stock, ubicacion, precio, precio_venta, codigo, nombre, precio_costo, valor_unitario_inicial, ...productoData } = dto;
     // Validar si el código ya existe
     if (codigo) {
       const existeCodigo = await this.productosRepo.findOne({ where: { codigo } });
@@ -170,10 +174,11 @@ async getAllProductos(
       const savedProducto = await productoRepo.save(producto);
 
       // Crear precio inicial si se proporcionó
+      // Priorizar valor_unitario_inicial, luego precio_venta (nuevo), luego precio (compatibilidad)
       const valorInicial =
         valor_unitario_inicial !== undefined && valor_unitario_inicial !== null
           ? valor_unitario_inicial
-          : precio;
+          : (precio_venta !== undefined && precio_venta !== null ? precio_venta : precio);
 
       if (valorInicial !== undefined && valorInicial !== null) {
         const precioInicial = precioRepo.create({
@@ -217,7 +222,9 @@ async getAllProductos(
 
   const inventarioRegistro = producto.inventario;
   (producto as any).stock = inventarioRegistro?.stock || 0;
-  (producto as any).precio = producto.precios?.[0]?.valor_unitario || 0;
+  (producto as any).precio = producto.precios?.[0]?.valor_unitario || producto.precio_costo || 0;
+  // Exponer precio_venta calculado (si existe un precio activo, usarlo; sino usar el campo producto.precio_venta)
+  (producto as any).precio_venta = producto.precios?.[0]?.valor_unitario ?? producto.precio_venta ?? 0;
   // Copiar compras/ventas/ubicacion al objeto producto para el detalle
   (producto as any).compras = inventarioRegistro?.compras ?? 0;
   (producto as any).ventas = inventarioRegistro?.ventas ?? 0;
@@ -228,7 +235,7 @@ async getAllProductos(
 
   // 🔹 UPDATE
   async update(id: number, dto: UpdateProductoDto): Promise<Producto> {
-    const { stock, ubicacion, precio, ...productoData } = dto;
+    const { stock, ubicacion, precio, precio_venta, ...productoData } = dto;
 
     const productoPreloaded = await this.productosRepo.preload({
       id,
@@ -249,8 +256,12 @@ async getAllProductos(
       );
     }
 
-    if (precio !== undefined && precio !== null) {
-      await this.preciosService.actualizarPrecioPorProductoId(id, precio);
+    // Si se envía precio_venta, usarlo; si no, usar 'precio' (compatibilidad)
+    const nuevoPrecioParaActualizar =
+      precio_venta !== undefined && precio_venta !== null ? precio_venta : precio;
+
+    if (nuevoPrecioParaActualizar !== undefined && nuevoPrecioParaActualizar !== null) {
+      await this.preciosService.actualizarPrecioPorProductoId(id, nuevoPrecioParaActualizar);
     }
 
     return this.findOneWithRelations(id);

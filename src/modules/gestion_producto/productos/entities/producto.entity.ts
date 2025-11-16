@@ -4,6 +4,7 @@ import { Column, Entity, OneToOne, OneToMany, PrimaryGeneratedColumn, ManyToOne,
 import { Inventario } from '../../inventario/entities/inventario.entity';
 import { Estado } from '../../../catalogos_basicos/estados/entities/estado.entity';
 import { Precio } from '../../precios/entities/precio.entity';
+import { Compra } from '../../compras/entities/compra.entity';
 import { Categoria } from '../../../catalogos_basicos/categorias/entities/categoria.entity'; 
 
 @Entity('productos')
@@ -20,6 +21,10 @@ export class Producto {
   // ✅ CAMPO AGREGADO: Costo de compra (Precio que la empresa paga al proveedor)
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   precio_costo: number; 
+
+	// ✅ Precio de venta (expuesto al frontend)
+	@Column('decimal', { precision: 10, scale: 2, default: 0, name: 'precio_venta' })
+	precio_venta: number;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   ficha_tecnica_url?: string;
@@ -52,4 +57,8 @@ export class Producto {
 
   @OneToMany(() => Precio, (precio) => precio.producto)
   precios: Precio[];
+
+	// Relación con compras (un producto puede tener muchas compras)
+	@OneToMany(() => Compra, (compra) => compra.producto)
+	compras: Compra[];
 }

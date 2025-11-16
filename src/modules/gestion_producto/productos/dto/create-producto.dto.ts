@@ -34,6 +34,12 @@ export class CreateProductoDto {
   @IsOptional() // o @IsNotEmpty() si el precio inicial es obligatorio
   precio?: number; // Se mantiene por compatibilidad (precio de venta)
 
+  // Nuevo campo explícito para precio de venta (frontend -> backend)
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  precio_venta?: number;
+
   // ✅ Costo de compra para la tabla 'productos'
   @IsNumber()
   @IsOptional()

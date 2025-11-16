@@ -16,6 +16,7 @@ import { UsuariosAdminModule } from './modules/cliente-administracion/usuarios-a
 import { MetodosPagoModule } from './modules/cliente-administracion/metodos-pago/metodos-pago.module';
 import { ClientesModule } from './modules/cliente-administracion/clientes/clientes.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ComprasModule } from './modules/gestion_producto/compras/compras.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -45,6 +46,8 @@ import { AuthModule } from './modules/auth/auth.module';
     UsuariosAdminModule,
     FacturasModule,
     AuthModule,
+    ComprasModule,
+    
   ],
   controllers: [AppController],
   providers: [AppService],
