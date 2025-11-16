@@ -1,15 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Producto } from '../../productos/entities/producto.entity';
-import { Categoria } from '../../../catalogos_basicos/categorias/entities/categoria.entity';
 
 @Entity('compras')
 export class Compra {
     @PrimaryGeneratedColumn()
     id: number;
-
-    @Column({ type: 'varchar', length: 50 })
-    codigo: string;
-
     @Column({ type: 'date' })
     fecha: string;
 
@@ -28,14 +23,10 @@ export class Compra {
     // ========================
     //     RELACIÓN CATEGORÍA
     // ========================
-    @Column({ name: 'categoria_id' })
-    categoriaId: number;
-
-    @ManyToOne(() => Categoria, (categoria) => categoria.compras, {
-        onDelete: 'CASCADE',
-    })
-    @JoinColumn({ name: 'categoria_id' })
-    categoria: Categoria;
+    // Mantener solo la columna categoria_id (sin relación) para mantener compatibilidad con la BD.
+    // Se llena automáticamente en el backend a partir del producto si no viene desde el front.
+    @Column({ name: 'categoria_id', type: 'int', nullable: true })
+    categoriaId?: number;
 
     // ========================
     //     CAMPOS PROPIOS

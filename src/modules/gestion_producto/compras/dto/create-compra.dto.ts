@@ -1,18 +1,11 @@
-import { IsInt, IsString, IsDateString, IsNumber, Min, Length } from 'class-validator';
+import { IsInt, IsDateString, IsNumber, Min } from 'class-validator';
 
 export class CreateCompraDto {
-  @IsString()
-  @Length(1, 50)
-  codigo: string;
-
   @IsDateString()
   fecha: string;
 
   @IsInt()
   producto_id: number;
-
-  @IsInt()
-  categoria_id: number;
 
   @IsInt()
   @Min(1, { message: 'La cantidad mínima es 1' })
