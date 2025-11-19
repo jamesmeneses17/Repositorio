@@ -19,6 +19,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ComprasModule } from './modules/gestion_producto/compras/compras.module';
 import { Venta } from './modules/gestion_producto/ventas/entities/venta.entity';
 import { VentasModule } from './modules/gestion_producto/ventas/ventas.module';
+import { CreditosModule } from './modules/facturacion/creditos/creditos.module';
+import { PagosCreditoModule } from './modules/facturacion/pago-credito/pagos_credito.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -49,7 +51,9 @@ import { VentasModule } from './modules/gestion_producto/ventas/ventas.module';
     FacturasModule,
     AuthModule,
     ComprasModule,
-    VentasModule
+    VentasModule,
+    CreditosModule,
+    PagosCreditoModule
     
   ],
   controllers: [AppController],
