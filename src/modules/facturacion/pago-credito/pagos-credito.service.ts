@@ -21,7 +21,9 @@ export class PagosCreditoService {
   ) {}
 
   async registrarPago(dto: CreatePagoCreditoDto) {
-    return await this.dataSource.transaction(async (manager) => {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        console.log('[PagosCreditoService] registrarPago input dto:', dto);
       const credito = await manager.findOne(Credito, {
         where: { id: dto.credito_id },
       });
@@ -64,6 +66,17 @@ export class PagosCreditoService {
         nuevo_saldo: credito.saldo_pendiente,
         estado: credito.estado,
       };
+      });
+    } catch (err) {
+      console.error('[PagosCreditoService] Error en registrarPago:', err);
+      throw err;
+    }
+  }
+
+  async findByCredito(creditoId: number) {
+    return this.pagosRepo.find({
+      where: { credito_id: creditoId },
+      order: { fecha_pago: 'DESC' },
     });
   }
 }

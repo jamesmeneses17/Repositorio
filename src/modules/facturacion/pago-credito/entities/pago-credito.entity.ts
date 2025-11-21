@@ -1,5 +1,5 @@
 // src/pagos_credito/entities/pagos_credito.entity.ts
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
 import { Credito } from '../../creditos/entities/creditos.entity';
 
 @Entity('pagos_credito')
@@ -11,6 +11,7 @@ export class PagosCredito {
   credito_id: number;
 
   @ManyToOne(() => Credito, (c) => c.pagos, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'credito_id' })
   credito: Credito;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
