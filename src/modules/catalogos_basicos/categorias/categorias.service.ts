@@ -57,13 +57,20 @@ export class CategoriasService {
       throw new BadRequestException('La categoría con ese nombre ya existe. Por favor, use otro nombre.');
     }
 
-    const dataToSave = {
+    const dataToSave: any = {
       ...dto,
-      estadoId: dto.estadoId || 1, 
+      estadoId: dto.estadoId || 1,
     };
 
+    // Soporte para payloads en snake_case desde el frontend
+    if ((dto as any)['categoria_principal_id'] !== undefined) {
+      dataToSave.categoriaPrincipalId = (dto as any)['categoria_principal_id'];
+    } else if ((dto as any).categoriaPrincipalId !== undefined) {
+      dataToSave.categoriaPrincipalId = (dto as any).categoriaPrincipalId;
+    }
+
     try {
-      const categoria = this.categoriaRepository.create(dataToSave);
+      const categoria = this.categoriaRepository.create(dataToSave as unknown as Categoria);
       return await this.categoriaRepository.save(categoria);
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY' || error.code === '23505') { 
@@ -75,7 +82,7 @@ export class CategoriasService {
 
   async findAll(): Promise<Categoria[]> {
     return await this.categoriaRepository.find({
-      relations: ['estado'],
+      relations: ['estado', 'categoria_principal'],
       order: { id: 'DESC' },
     });
   }
@@ -83,7 +90,7 @@ export class CategoriasService {
   async findOne(id: number): Promise<Categoria> {
     const categoria = await this.categoriaRepository.findOne({
       where: { id },
-      relations: ['estado'],
+      relations: ['estado', 'categoria_principal'],
     });
     if (!categoria)
       throw new NotFoundException(`Categoría con id ${id} no encontrada`);
@@ -105,7 +112,14 @@ export class CategoriasService {
       }
     }
     
-    await this.categoriaRepository.update(id, dto);
+    // Mapear posibles keys en snake_case recibidas desde frontend
+    const dataToUpdate: any = { ...dto };
+    if ((dto as any)['categoria_principal_id'] !== undefined) {
+      dataToUpdate.categoriaPrincipalId = (dto as any)['categoria_principal_id'];
+      delete dataToUpdate['categoria_principal_id'];
+    }
+
+    await this.categoriaRepository.update(id, dataToUpdate);
     
     const categoriaActualizada = await this.findOne(id);
     if (!categoriaActualizada) {

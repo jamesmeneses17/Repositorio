@@ -15,8 +15,7 @@ export class PagosCredito {
   credito: Credito;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
-  monto_pago: number;
-
+  monto_pago: number
   @Column({ type: 'date', default: () => 'CURRENT_DATE' })
   fecha_pago: string;
 }

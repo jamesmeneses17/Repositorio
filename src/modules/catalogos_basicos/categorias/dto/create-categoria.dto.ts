@@ -9,5 +9,9 @@ export class CreateCategoriaDto {
 
   @IsNumber()
   @IsOptional()
-  estadoId?: number; 
+  estadoId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  categoriaPrincipalId?: number | null;
 }

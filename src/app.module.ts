@@ -21,6 +21,7 @@ import { Venta } from './modules/gestion_producto/ventas/entities/venta.entity';
 import { VentasModule } from './modules/gestion_producto/ventas/ventas.module';
 import { CreditosModule } from './modules/facturacion/creditos/creditos.module';
 import { PagosCreditoModule } from './modules/facturacion/pago-credito/pagos_credito.module';
+import { CategoriasPrincipalesModule } from './modules/catalogos_basicos/categorias-principales/categorias-principales.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -53,7 +54,8 @@ import { PagosCreditoModule } from './modules/facturacion/pago-credito/pagos_cre
     ComprasModule,
     VentasModule,
     CreditosModule,
-    PagosCreditoModule
+    PagosCreditoModule,
+    CategoriasPrincipalesModule,
     
   ],
   controllers: [AppController],
