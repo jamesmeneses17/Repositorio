@@ -6,13 +6,15 @@ import { Producto } from './entities/producto.entity';
 import { EstadosModule } from '../../catalogos_basicos/estados/estados.module';
 import { InventarioModule } from '../inventario/inventario.module';
 import { PreciosModule } from '../precios/precios.module';
+import { R2Module } from '../../../common/r2.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Producto]),
     EstadosModule,
     InventarioModule,
-    PreciosModule
+    PreciosModule,
+    R2Module,
   ],
   controllers: [ProductosController],
   providers: [ProductosService],

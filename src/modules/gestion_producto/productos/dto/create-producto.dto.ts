@@ -18,6 +18,14 @@ export class CreateProductoDto {
 
   @IsOptional()
   @IsString()
+  imagen_url?: string;
+
+  @IsOptional()
+  @IsString()
+  pdf_url?: string;
+
+  @IsOptional()
+  @IsString()
   descripcion?: string;
 
   // 🔗 Relaciones

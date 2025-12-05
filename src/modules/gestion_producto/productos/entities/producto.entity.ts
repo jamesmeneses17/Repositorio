@@ -29,6 +29,14 @@ export class Producto {
   @Column({ type: 'varchar', length: 255, nullable: true })
   ficha_tecnica_url?: string;
 
+	// URL de imagen principal (puede ser una imagen alojada en CDN o path)
+	@Column({ type: 'varchar', length: 255, nullable: true })
+	imagen_url?: string;
+
+	// URL opcional para almacenar un PDF adicional (si no usas ficha_tecnica_url)
+	@Column({ type: 'varchar', length: 255, nullable: true })
+	pdf_url?: string;
+
   @Column({ type: 'text', nullable: true })
   descripcion?: string;
 

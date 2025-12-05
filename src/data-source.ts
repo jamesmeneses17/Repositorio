@@ -13,6 +13,10 @@ import { Marca } from './modules/catalogos_basicos/marcas/entities/marca.entity'
 import { UnidadMedida } from './modules/catalogos_basicos/unidades-medida/entities/unidad-medida.entity';
 import { Especificacion } from './modules/catalogos_basicos/especificaciones/entities/especificacion.entity';
 import { UsuarioAdmin } from './modules/cliente-administracion/usuarios-admin/entities/usuarios-admin.entity';
+import { Estado } from './modules/catalogos_basicos/estados/entities/estado.entity';
+import { Inventario } from './modules/gestion_producto/inventario/entities/inventario.entity';
+import { Precio } from './modules/gestion_producto/precios/entities/precio.entity';
+import { Compra } from './modules/gestion_producto/compras/entities/compra.entity';
 
 export const AppDataSource = new DataSource({
   type: 'mysql',
@@ -21,7 +25,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
   database: process.env.DB_NAME || 'sistema_ventas',
-  entities: [Categoria, UsuarioAdmin, Producto, Marca, UnidadMedida, Especificacion],
+  entities: [Categoria, UsuarioAdmin, Producto, Marca, UnidadMedida, Especificacion, Estado, Inventario, Precio, Compra],
   migrations: ['src/migrations/*.ts'],
 });
 

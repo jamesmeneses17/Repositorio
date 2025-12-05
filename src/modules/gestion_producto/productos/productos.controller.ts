@@ -9,6 +9,9 @@ import {
     Delete,
     Query,
     Logger,
+    UseInterceptors,
+    BadRequestException,
+    UploadedFile,
     // Eliminamos @Query ya que no filtraremos por URL
     // Query, 
     // BadRequestException
@@ -16,11 +19,17 @@ import {
 import { ProductosService } from './productos.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { R2Service } from '../../../common/services/r2.service';
+import { memoryStorage } from 'multer';
 
 @Controller('productos')
 export class ProductosController {
     private readonly logger = new Logger('ProductosController');
-    constructor(private readonly productosService: ProductosService) { }
+     constructor(
+    private readonly r2: R2Service,
+    private readonly productosService: ProductosService,
+  ) {}
 
     @Post()
     create(@Body() dto: CreateProductoDto) {
@@ -81,4 +90,13 @@ export class ProductosController {
     remove(@Param('id') id: string) {
         return this.productosService.remove(+id);
     }
+     @Post(':id/upload-imagen')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadImagen(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    const { url } = await this.r2.uploadBuffer(file.buffer, file.originalname, file.mimetype);
+    // Guardar URL en producto
+    const updated = await this.productosService.update(+id, { imagen_url: url });
+    return { url, producto: updated };
+  }
 }
