@@ -24,6 +24,7 @@ import { PagosCreditoModule } from './modules/facturacion/pago-credito/pagos_cre
 import { CategoriasPrincipalesModule } from './modules/catalogos_basicos/categorias-principales/categorias-principales.module';
 import { R2Service } from './common/services/r2.service';
 import { R2Module } from './common/r2.module';
+import { InformacionEmpresaModule } from './modules/configuracion_web/informacion_empresa/informacion-empresa.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -59,6 +60,7 @@ import { R2Module } from './common/r2.module';
     PagosCreditoModule,
     CategoriasPrincipalesModule,
     R2Module,
+    InformacionEmpresaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
