@@ -52,7 +52,8 @@ async getAllProductos(
   const query = this.productosRepo.createQueryBuilder('producto');
   query
     .leftJoinAndSelect('producto.estado', 'estado')
-    .leftJoinAndSelect('producto.categoria', 'categoria')
+    .leftJoinAndSelect('producto.subcategoria', 'subcategoria')
+    .leftJoinAndSelect('subcategoria.categoria', 'categoria')
     .leftJoinAndSelect('producto.inventario', 'inventario')
     .leftJoinAndSelect('producto.precios', 'precios', 'precios.fecha_fin IS NULL')
     .orderBy('producto.id', 'DESC');
@@ -213,7 +214,7 @@ async getAllProductos(
   async findOneWithRelations(id: number): Promise<Producto> {
     const producto = await this.productosRepo.findOne({
       where: { id },
-      relations: ['precios', 'inventario', 'estado', 'categoria'],
+      relations: ['precios', 'inventario', 'estado', 'subcategoria'],
     });
 
     if (!producto) {

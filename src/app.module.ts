@@ -26,6 +26,7 @@ import { R2Service } from './common/services/r2.service';
 import { R2Module } from './common/r2.module';
 import { InformacionEmpresaModule } from './modules/configuracion_web/informacion_empresa/informacion-empresa.module';
 import { BannerModule } from './modules/configuracion_web/banners_carrusel/banner.module';
+import { SubcategoriasModule } from './modules/catalogos_basicos/subcategorias/subcategorias.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -63,6 +64,7 @@ import { BannerModule } from './modules/configuracion_web/banners_carrusel/banne
     R2Module,
     InformacionEmpresaModule,
     BannerModule,
+    SubcategoriasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -37,7 +37,8 @@ export class ComprasService {
     if (data.productoId) {
       const producto = await this.productoRepo.findOne({ where: { id: data.productoId } });
       if (!producto) throw new NotFoundException('Producto no encontrado');
-      data.categoriaId = producto.categoriaId ?? null;
+      // Obtener categoriaId a través de la subcategoria (si existe)
+      data.categoriaId = (producto.subcategoria && (producto.subcategoria as any).categoriaId) ?? null;
     }
 
     const compra = this.compraRepo.create(data);
@@ -80,7 +81,7 @@ export class ComprasService {
       delete data.producto_id;
       const producto = await this.productoRepo.findOne({ where: { id: data.productoId } });
       if (!producto) throw new NotFoundException('Producto no encontrado');
-      data.categoriaId = producto.categoriaId ?? null;
+      data.categoriaId = (producto.subcategoria && (producto.subcategoria as any).categoriaId) ?? null;
     }
 
     const compra = await this.compraRepo.preload(data);
