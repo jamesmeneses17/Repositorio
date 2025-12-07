@@ -3,6 +3,7 @@
 import { Column, Entity, OneToOne, OneToMany, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Inventario } from '../../inventario/entities/inventario.entity';
 import { Estado } from '../../../catalogos_basicos/estados/entities/estado.entity';
+import { Categoria } from '../../../catalogos_basicos/categorias/entities/categoria.entity';
 import { Precio } from '../../precios/entities/precio.entity';
 import { Compra } from '../../compras/entities/compra.entity';
 import { Subcategoria } from '../../../catalogos_basicos/subcategorias/entities/subcategoria.entity';
@@ -47,16 +48,24 @@ export class Producto {
   @JoinColumn({ name: 'estado_id' })
   estado: Estado;
 
+  // Relación con categoría (nivel 2) — opcional
+  @Column({ name: 'categoria_id', type: 'int', nullable: true })
+  categoriaId: number | null;
+
+  @ManyToOne(() => Categoria, { eager: true, nullable: true })
+  @JoinColumn({ name: 'categoria_id' })
+  categoria: Categoria | null;
+
   // 🛑 CAMBIO CRÍTICO: RELACIÓN CON SUBCATEGORÍA (Nivel 3)
   // -----------------------------------------------------
   // La columna fue renombrada a `subcategoria_id` en la base de datos (paso anterior).
-  @Column({ name: 'subcategoria_id', type: 'int' })
-  subcategoriaId: number; 
+  @Column({ name: 'subcategoria_id', type: 'int', nullable: true })
+  subcategoriaId: number | null; 
 
   // Apunta a la entidad Subcategoria
-  @ManyToOne(() => Subcategoria, { eager: true })
+  @ManyToOne(() => Subcategoria, { eager: true, nullable: true })
   @JoinColumn({ name: 'subcategoria_id' }) // Debe coincidir con el nombre de la columna en la BD
-  subcategoria: Subcategoria; // El nombre de la propiedad cambia a 'subcategoria'
+  subcategoria: Subcategoria | null; // El nombre de la propiedad cambia a 'subcategoria'
   
   // -----------------------------------------------------
 

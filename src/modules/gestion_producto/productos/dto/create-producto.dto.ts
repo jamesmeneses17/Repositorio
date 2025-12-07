@@ -1,17 +1,35 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber, Min } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductoDto {
-  // 📦 Datos básicos del producto
-  @IsNotEmpty()
-  @IsString()
-  @MaxLength(150)
-  nombre: string;
-
+  // Datos básicos requeridos en el formulario
   @IsNotEmpty()
   @IsString()
   @MaxLength(50)
   codigo: string;
 
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(150)
+  nombre: string;
+
+  // Relación obligatoria: categoría (frontend envía la categoría seleccionada)
+  @IsNumber()
+  @IsNotEmpty()
+  categoriaId: number;
+
+  // Subcategoría opcional
+  @ApiPropertyOptional({ description: 'ID de la subcategoría (opcional)' })
+  @IsNumber()
+  @IsOptional()
+  subcategoriaId?: number | null;
+
+  // Texto descriptivo opcional
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
+
+  // URLs opcionales que pueden crearse vía upload separado
   @IsOptional()
   @IsString()
   ficha_tecnica_url?: string;
@@ -19,56 +37,4 @@ export class CreateProductoDto {
   @IsOptional()
   @IsString()
   imagen_url?: string;
-
-  @IsOptional()
-  @IsString()
-  pdf_url?: string;
-
-  @IsOptional()
-  @IsString()
-  descripcion?: string;
-
-  // 🔗 Relaciones
-  @IsNumber()
-  @IsOptional()
-  estadoId?: number;
-
-  @IsNumber()
-  @IsOptional()
-  categoriaId?: number;
-
-  // 💰 Campos para precios
-  @IsNumber()
-  @IsOptional() // o @IsNotEmpty() si el precio inicial es obligatorio
-  precio?: number; // Se mantiene por compatibilidad (precio de venta)
-
-  // Nuevo campo explícito para precio de venta (frontend -> backend)
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  precio_venta?: number;
-
-  // ✅ Costo de compra para la tabla 'productos'
-  @IsNumber()
-  @IsOptional()
-  precio_costo?: number;
-
-  // ✅ Precio base de venta inicial (para crear registro en 'precios')
-  @IsNumber()
-  @IsOptional()
-  valor_unitario_inicial?: number;
-
-  // 🏬 Campos para inventario
-  @IsNumber()
-  @IsOptional()
-  stock?: number; // Se usa para crear el registro en la tabla 'inventario'
-
-  @IsOptional()
-  @IsString()
-  ubicacion?: string; // Campo de la tabla 'inventario'
-
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  stockMinimo?: number; // 🔑 NUEVO campo para definir el stock mínimo permitido
 }

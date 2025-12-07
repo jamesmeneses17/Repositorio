@@ -90,13 +90,31 @@ export class ProductosController {
     remove(@Param('id') id: string) {
         return this.productosService.remove(+id);
     }
-     @Post(':id/upload-imagen')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-  async uploadImagen(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No file uploaded');
-    const { url } = await this.r2.uploadBuffer(file.buffer, file.originalname, file.mimetype);
-    // Guardar URL en producto
-    const updated = await this.productosService.update(+id, { imagen_url: url });
-    return { url, producto: updated };
-  }
+        @Post(':id/upload-imagen')
+    @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+    async uploadImagen(
+        @Param('id') id: string,
+        @UploadedFile() file: Express.Multer.File,
+        @Body('type') type?: string,
+    ) {
+        if (!file) throw new BadRequestException('No file uploaded');
+
+        // type puede ser 'imagen' o 'ficha_tecnica' (por compatibilidad aceptamos otras variantes)
+        const t = (type || 'imagen').toString().toLowerCase();
+        if (!['imagen', 'ficha_tecnica'].includes(t)) {
+            throw new BadRequestException('type must be "imagen" or "ficha_tecnica"');
+        }
+
+        const { url } = await this.r2.uploadBuffer(file.buffer, file.originalname, file.mimetype);
+
+        // Guardar URL en el campo correspondiente según el tipo
+        const payload: any = {};
+        if (t === 'imagen') payload.imagen_url = url;
+        else payload.ficha_tecnica_url = url;
+
+        const updated = await this.productosService.update(+id, payload);
+
+        // Retornar la URL en el campo correcto
+        return t === 'imagen' ? { imagen_url: url, producto: updated } : { ficha_tecnica_url: url, producto: updated };
+    }
 }

@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Producto } from './entities/producto.entity';
+import { Subcategoria } from '../../catalogos_basicos/subcategorias/entities/subcategoria.entity';
+import { Categoria } from '../../catalogos_basicos/categorias/entities/categoria.entity';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
 
@@ -34,9 +36,14 @@ export type ProductoConStockCalculado = Omit<Producto, 'compras'> & {
 
 @Injectable()
 export class ProductosService {
+  private readonly logger = new Logger(ProductosService.name);
   constructor(
     @InjectRepository(Producto)
     private readonly productosRepo: Repository<Producto>,
+    @InjectRepository(Subcategoria)
+    private readonly subcategoriaRepo: Repository<Subcategoria>,
+    @InjectRepository(Categoria)
+    private readonly categoriaRepo: Repository<Categoria>,
     private readonly inventarioService: InventarioService,
     private readonly preciosService: PreciosService,
     private readonly dataSource: DataSource,
@@ -86,6 +93,9 @@ async getAllProductos(
 
     return {
       ...p,
+      // Mantener compatibilidad con frontend que muestra la columna 'CATEGORÍA'
+      // Mostramos el nombre de la subcategoría aquí para que la tabla muestre subcategorías.
+      categoria: p.subcategoria?.nombre ?? null,
       stock: stockActual,
       precio: precioActual, // ← este campo ahora es costo
       precio_venta: precioVentaActual,
@@ -141,7 +151,8 @@ async getAllProductos(
       }
   // 🔹 CREATE
   async create(dto: CreateProductoDto): Promise<Producto> {
-    const { stock, ubicacion, precio, precio_venta, codigo, nombre, precio_costo, valor_unitario_inicial, ...productoData } = dto;
+    const { stock, ubicacion, precio, precio_venta, codigo, nombre, precio_costo, valor_unitario_inicial, ...productoData } = dto as any;
+
     // Validar si el código ya existe
     if (codigo) {
       const existeCodigo = await this.productosRepo.findOne({ where: { codigo } });
@@ -149,6 +160,7 @@ async getAllProductos(
         throw new ConflictException({ message: 'El producto ya existe' });
       }
     }
+
     // Validar si el nombre ya existe (case-insensitive)
     if (nombre) {
       const existeNombre = await this.productosRepo.createQueryBuilder('producto')
@@ -158,10 +170,17 @@ async getAllProductos(
         throw new ConflictException({ message: 'El producto ya existe' });
       }
     }
+
     // Usar transacción para crear producto y precio inicial de forma atómica
     const nuevoProducto = await this.dataSource.transaction(async (manager) => {
       const productoRepo = manager.getRepository(Producto);
       const precioRepo = manager.getRepository(Precio);
+
+      // Compatibilidad: el frontend puede enviar `categoriaId` (nivel 2) y/o `subcategoriaId` (nivel 3).
+      // NOTA: No mapear `categoriaId` a `subcategoriaId`. La subcategoría es opcional y solo debe llenarse
+      // si el frontend envía explícitamente `subcategoriaId`.
+      const incomingSubcategoriaId = (productoData as any).subcategoriaId ?? (productoData as any).subcategoria_id ?? null;
+      const incomingCategoriaId = (productoData as any).categoriaId ?? (productoData as any).categoria_id ?? null;
 
       const dataToSave = {
         ...productoData,
@@ -169,13 +188,17 @@ async getAllProductos(
         nombre,
         precio_costo: precio_costo ?? 0,
         estadoId: productoData.estadoId || 1,
+        // Para creación, si no se envía subcategoria, guardamos NULL (producto sin subcategoría)
+        subcategoriaId: incomingSubcategoriaId,
+        categoriaId: incomingCategoriaId,
       };
 
+      this.logger.log(`Create producto - dataToSave.subcategoriaId=${dataToSave.subcategoriaId}`);
       const producto = productoRepo.create(dataToSave);
-      const savedProducto = await productoRepo.save(producto);
+      const savedProducto: any = await productoRepo.save(producto);
+      this.logger.log(`Created producto id=${savedProducto.id} subcategoriaId=${savedProducto.subcategoriaId}`);
 
       // Crear precio inicial si se proporcionó
-      // Priorizar valor_unitario_inicial, luego precio_venta (nuevo), luego precio (compatibilidad)
       const valorInicial =
         valor_unitario_inicial !== undefined && valor_unitario_inicial !== null
           ? valor_unitario_inicial
@@ -197,7 +220,7 @@ async getAllProductos(
       return savedProducto;
     });
 
-    const productoId = nuevoProducto.id;
+    const productoId = (nuevoProducto as any).id;
 
     if (stock !== undefined || ubicacion !== undefined) {
       await this.inventarioService.actualizarInventarioPorProductoId(
@@ -231,36 +254,89 @@ async getAllProductos(
   (producto as any).ventas = inventarioRegistro?.ventas ?? 0;
   (producto as any).ubicacion = inventarioRegistro?.ubicacion ?? null;
 
+  // Compatibilidad: exponer 'categoria' como nombre de la subcategoría para el frontend
+  (producto as any).categoria = producto.subcategoria ? (producto.subcategoria as any).nombre : null;
+
     return producto;
   }
 
   // 🔹 UPDATE
   async update(id: number, dto: UpdateProductoDto): Promise<Producto> {
-    const { stock, ubicacion, precio, precio_venta, ...productoData } = dto;
+    // Cargar la entidad existente con relación a subcategoria
+    const producto = await this.productosRepo.findOne({ where: { id }, relations: ['subcategoria'] });
+    if (!producto) throw new NotFoundException(`Producto con ID ${id} no encontrado para actualizar.`);
 
-    const productoPreloaded = await this.productosRepo.preload({
-      id,
-      ...productoData,
-    });
+    this.logger.log(`[updateProducto] payload final: ${JSON.stringify(dto)}`);
 
-    if (!productoPreloaded) {
-      throw new NotFoundException(`Producto con ID ${id} no encontrado para actualizar.`);
+    const anyDto: any = dto as any;
+    const hasSubcategoriaProp = Object.prototype.hasOwnProperty.call(anyDto, 'subcategoriaId')
+      || Object.prototype.hasOwnProperty.call(anyDto, 'categoriaId')
+      || Object.prototype.hasOwnProperty.call(anyDto, 'subcategoria_id')
+      || Object.prototype.hasOwnProperty.call(anyDto, 'categoria_id');
+
+    // Asignar solo propiedades definidas (excepto las variantes de subcategoria)
+    for (const key of Object.keys(anyDto)) {
+      if (['subcategoriaId', 'categoriaId', 'subcategoria_id', 'categoria_id'].includes(key)) continue;
+      const val = anyDto[key];
+      if (val !== undefined) (producto as any)[key] = val;
     }
 
-    await this.productosRepo.save(productoPreloaded);
+    // Manejar subcategoria solo si viene explícita en el DTO
+    if (hasSubcategoriaProp) {
+      const rawSubId = anyDto.categoriaId ?? anyDto.subcategoriaId ?? anyDto.subcategoria_id ?? anyDto.categoria_id;
+      const subId = rawSubId === undefined ? undefined : (rawSubId === null ? null : Number(rawSubId));
 
-    if (stock !== undefined || ubicacion !== undefined) {
+      this.logger.log(`[updateProducto] incomingSubcategoriaId=${rawSubId}`);
+
+      if (subId === null) {
+        producto.subcategoria = null;
+        (producto as any).subcategoriaId = null;
+      } else if (subId !== undefined && !Number.isNaN(subId)) {
+        const subcat = await this.subcategoriaRepo.findOneBy({ id: subId });
+        if (!subcat) throw new NotFoundException('Subcategoría no encontrada');
+        producto.subcategoria = subcat;
+        (producto as any).subcategoriaId = subcat.id;
+      }
+    } else {
+      this.logger.log(`[updateProducto] no se indicó subcategoria en el DTO; no se tocará la FK`);
+    }
+
+      // Manejar categoria (nivel 2) si viene explícita en el DTO
+      const hasCategoriaProp = Object.prototype.hasOwnProperty.call(anyDto, 'categoriaId') || Object.prototype.hasOwnProperty.call(anyDto, 'categoria_id');
+      if (hasCategoriaProp) {
+        const rawCatId = anyDto.categoriaId ?? anyDto.categoria_id;
+        const catId = rawCatId === undefined ? undefined : (rawCatId === null ? null : Number(rawCatId));
+        this.logger.log(`[updateProducto] incomingCategoriaId=${rawCatId}`);
+        if (catId === null) {
+          producto.categoria = null as any;
+          (producto as any).categoriaId = null;
+        } else if (catId !== undefined && !Number.isNaN(catId)) {
+          const cat = await this.categoriaRepo.findOneBy({ id: catId });
+          if (!cat) throw new NotFoundException('Categoría no encontrada');
+          producto.categoria = cat as any;
+          (producto as any).categoriaId = cat.id;
+        }
+      } else {
+        this.logger.log(`[updateProducto] no se indicó categoria en el DTO; no se tocará la FK`);
+      }
+
+    // Guardar
+    const saved = await this.productosRepo.save(producto);
+    this.logger.log(`[updateProducto] saved id=${saved.id}`);
+
+    // Actualizar inventario si aplica
+    if ((anyDto as any).stock !== undefined || (anyDto as any).ubicacion !== undefined) {
       await this.inventarioService.actualizarInventarioPorProductoId(
         id,
-        typeof stock === 'number' ? stock : 0,
-        typeof ubicacion === 'string' ? ubicacion : undefined,
+        typeof (anyDto as any).stock === 'number' ? (anyDto as any).stock : 0,
+        typeof (anyDto as any).ubicacion === 'string' ? (anyDto as any).ubicacion : undefined,
       );
     }
 
-    // Si se envía precio_venta, usarlo; si no, usar 'precio' (compatibilidad)
-    const nuevoPrecioParaActualizar =
-      precio_venta !== undefined && precio_venta !== null ? precio_venta : precio;
-
+    // Actualizar precio si viene
+    const nuevoPrecioParaActualizar = (anyDto as any).precio_venta !== undefined && (anyDto as any).precio_venta !== null
+      ? (anyDto as any).precio_venta
+      : (anyDto as any).precio;
     if (nuevoPrecioParaActualizar !== undefined && nuevoPrecioParaActualizar !== null) {
       await this.preciosService.actualizarPrecioPorProductoId(id, nuevoPrecioParaActualizar);
     }
