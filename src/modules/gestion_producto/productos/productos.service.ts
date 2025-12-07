@@ -188,6 +188,7 @@ async getAllProductos(
         codigo,
         nombre,
         precio_costo: precio_costo ?? 0,
+        precio_venta: precio_venta ?? null,
         estadoId: productoData.estadoId || 1,
         // Para creación, si no se envía subcategoria, guardamos NULL (producto sin subcategoría)
         subcategoriaId: incomingSubcategoriaId,

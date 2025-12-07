@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductoDto {
@@ -37,4 +37,11 @@ export class CreateProductoDto {
   @IsOptional()
   @IsString()
   imagen_url?: string;
+
+  // Precio de venta opcional (para creación/edición)
+  @ApiPropertyOptional({ description: 'Precio de venta (opcional)' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  precio_venta?: number;
 }
