@@ -59,6 +59,7 @@ async getAllProductos(
   const query = this.productosRepo.createQueryBuilder('producto');
   query
     .leftJoinAndSelect('producto.estado', 'estado')
+    .leftJoinAndSelect('producto.categoria', 'categoriaDirecta')
     .leftJoinAndSelect('producto.subcategoria', 'subcategoria')
     .leftJoinAndSelect('subcategoria.categoria', 'categoria')
     .leftJoinAndSelect('producto.inventario', 'inventario')
@@ -93,9 +94,9 @@ async getAllProductos(
 
     return {
       ...p,
-      // Mantener compatibilidad con frontend que muestra la columna 'CATEGORÍA'
-      // Mostramos el nombre de la subcategoría aquí para que la tabla muestre subcategorías.
-      categoria: p.subcategoria?.nombre ?? null,
+      // ✅ CORRECCIÓN: Exponer el nombre de la CATEGORÍA real (no subcategoría)
+      // Si tiene subcategoría, usar el nombre de su categoría padre; sino usar la categoría directa
+      categoria: p.subcategoria?.categoria?.nombre ?? (p as any).categoria?.nombre ?? null,
       stock: stockActual,
       precio: precioActual, // ← este campo ahora es costo
       precio_venta: precioVentaActual,
@@ -235,114 +236,212 @@ async getAllProductos(
 
   // 🔍 GET ONE con relaciones
   async findOneWithRelations(id: number): Promise<Producto> {
-    const producto = await this.productosRepo.findOne({
-      where: { id },
-      relations: ['precios', 'inventario', 'estado', 'subcategoria'],
-    });
+    // 🔥 Usar queryBuilder para tener control total sobre las relaciones
+    const producto = await this.productosRepo
+      .createQueryBuilder('producto')
+      .leftJoinAndSelect('producto.precios', 'precios')
+      .leftJoinAndSelect('producto.inventario', 'inventario')
+      .leftJoinAndSelect('producto.estado', 'estado')
+      .leftJoinAndSelect('producto.categoria', 'categoriaDirecta')
+      .leftJoinAndSelect('producto.subcategoria', 'subcategoria')
+      .leftJoinAndSelect('subcategoria.categoria', 'categoria')
+      .where('producto.id = :id', { id })
+      .getOne();
 
     if (!producto) {
       throw new NotFoundException(`Producto con ID ${id} no encontrado.`);
     }
 
-  const inventarioRegistro = producto.inventario;
-  (producto as any).stock = inventarioRegistro?.stock || 0;
-  (producto as any).precio = producto.precios?.[0]?.valor_unitario || producto.precio_costo || 0;
-  // Exponer precio_venta calculado (si existe un precio activo, usarlo; sino usar el campo producto.precio_venta)
-  (producto as any).precio_venta = producto.precios?.[0]?.valor_unitario ?? producto.precio_venta ?? 0;
-  // Copiar compras/ventas/ubicacion al objeto producto para el detalle
-  (producto as any).compras = inventarioRegistro?.compras ?? 0;
-  (producto as any).ventas = inventarioRegistro?.ventas ?? 0;
-  (producto as any).ubicacion = inventarioRegistro?.ubicacion ?? null;
+    this.logger.log(`[findOneWithRelations] Producto ${id} - subcategoriaId=${producto.subcategoriaId}, tiene subcategoria=${!!producto.subcategoria}`);
 
-  // Compatibilidad: exponer 'categoria' como nombre de la subcategoría para el frontend
-  (producto as any).categoria = producto.subcategoria ? (producto.subcategoria as any).nombre : null;
+
+    const inventarioRegistro = producto.inventario;
+    (producto as any).stock = inventarioRegistro?.stock || 0;
+    (producto as any).precio = producto.precios?.[0]?.valor_unitario || producto.precio_costo || 0;
+    // Exponer precio_venta calculado (si existe un precio activo, usarlo; sino usar el campo producto.precio_venta)
+    (producto as any).precio_venta = producto.precios?.[0]?.valor_unitario ?? producto.precio_venta ?? 0;
+    // Copiar compras/ventas/ubicacion al objeto producto para el detalle
+    (producto as any).compras = inventarioRegistro?.compras ?? 0;
+    (producto as any).ventas = inventarioRegistro?.ventas ?? 0;
+    (producto as any).ubicacion = inventarioRegistro?.ubicacion ?? null;
+
+    // ✅ CORRECCIÓN: Exponer 'categoria' como el nombre de la CATEGORÍA real (no subcategoría)
+    // Si tiene subcategoría, usar el nombre de su categoría padre; sino usar la categoría directa
+    (producto as any).categoria = producto.subcategoria?.categoria?.nombre ?? producto.categoria?.nombre ?? null;
 
     return producto;
   }
 
   // 🔹 UPDATE
   async update(id: number, dto: UpdateProductoDto): Promise<Producto> {
-    // Cargar la entidad existente con relación a subcategoria
-    const producto = await this.productosRepo.findOne({ where: { id }, relations: ['subcategoria'] });
+    // Cargar la entidad existente SIN eager loading de relaciones para evitar conflictos
+    const producto = await this.productosRepo.findOne({ 
+      where: { id }, 
+      relations: [] // No cargar relaciones para evitar problemas con el save
+    });
     if (!producto) throw new NotFoundException(`Producto con ID ${id} no encontrado para actualizar.`);
 
-    this.logger.log(`[updateProducto] payload final: ${JSON.stringify(dto)}`);
+    this.logger.log(`[updateProducto] payload recibido: ${JSON.stringify(dto)}`);
 
     const anyDto: any = dto as any;
     const hasSubcategoriaProp = Object.prototype.hasOwnProperty.call(anyDto, 'subcategoriaId')
-      || Object.prototype.hasOwnProperty.call(anyDto, 'categoriaId')
-      || Object.prototype.hasOwnProperty.call(anyDto, 'subcategoria_id')
+      || Object.prototype.hasOwnProperty.call(anyDto, 'subcategoria_id');
+    const hasCategoriaProp = Object.prototype.hasOwnProperty.call(anyDto, 'categoriaId') 
       || Object.prototype.hasOwnProperty.call(anyDto, 'categoria_id');
 
-    // Asignar solo propiedades definidas (excepto las variantes de subcategoria)
+    // Asignar propiedades básicas (excepto las FK que manejamos después)
     for (const key of Object.keys(anyDto)) {
       if (['subcategoriaId', 'categoriaId', 'subcategoria_id', 'categoria_id'].includes(key)) continue;
       const val = anyDto[key];
       if (val !== undefined) (producto as any)[key] = val;
     }
 
-    // Manejar subcategoria solo si viene explícita en el DTO
+    // 🔥 MANEJO DE SUBCATEGORÍA
     if (hasSubcategoriaProp) {
-      const rawSubId = anyDto.categoriaId ?? anyDto.subcategoriaId ?? anyDto.subcategoria_id ?? anyDto.categoria_id;
-      const subId = rawSubId === undefined ? undefined : (rawSubId === null ? null : Number(rawSubId));
+      const rawSubId = anyDto.subcategoriaId ?? anyDto.subcategoria_id;
+      // 🔥 CRÍTICO: No convertir null a número, mantenerlo como null
+      let subId;
+      if (rawSubId === null) {
+        subId = null;
+      } else if (rawSubId === undefined) {
+        subId = undefined;
+      } else {
+        subId = Number(rawSubId);
+      }
 
-      this.logger.log(`[updateProducto] incomingSubcategoriaId=${rawSubId}`);
+      this.logger.log(`[updateProducto] subcategoriaId recibido=${JSON.stringify(rawSubId)} → procesado: ${JSON.stringify(subId)} (tipo: ${typeof subId})`);
 
       if (subId === null) {
-        producto.subcategoria = null;
-        (producto as any).subcategoriaId = null;
-      } else if (subId !== undefined && !Number.isNaN(subId)) {
+        // Desvincular subcategoría - establecer explícitamente a null
+        producto.subcategoriaId = null;
+        this.logger.log(`[updateProducto] ✅ Desvinculando subcategoría (NULL)`);
+      } else if (subId !== undefined && !Number.isNaN(subId) && subId > 0) {
+        // Vincular nueva subcategoría
         const subcat = await this.subcategoriaRepo.findOneBy({ id: subId });
-        if (!subcat) throw new NotFoundException('Subcategoría no encontrada');
-        producto.subcategoria = subcat;
-        (producto as any).subcategoriaId = subcat.id;
+        if (!subcat) throw new NotFoundException(`Subcategoría con ID ${subId} no encontrada`);
+        producto.subcategoriaId = subcat.id;
+        this.logger.log(`[updateProducto] ✅ Vinculando subcategoría: ${subcat.id}`);
       }
     } else {
-      this.logger.log(`[updateProducto] no se indicó subcategoria en el DTO; no se tocará la FK`);
+      this.logger.log(`[updateProducto] subcategoriaId no incluido en DTO; no se modificará`);
     }
 
-      // Manejar categoria (nivel 2) si viene explícita en el DTO
-      const hasCategoriaProp = Object.prototype.hasOwnProperty.call(anyDto, 'categoriaId') || Object.prototype.hasOwnProperty.call(anyDto, 'categoria_id');
-      if (hasCategoriaProp) {
-        const rawCatId = anyDto.categoriaId ?? anyDto.categoria_id;
-        const catId = rawCatId === undefined ? undefined : (rawCatId === null ? null : Number(rawCatId));
-        this.logger.log(`[updateProducto] incomingCategoriaId=${rawCatId}`);
-        if (catId === null) {
-          producto.categoria = null as any;
-          (producto as any).categoriaId = null;
-        } else if (catId !== undefined && !Number.isNaN(catId)) {
-          const cat = await this.categoriaRepo.findOneBy({ id: catId });
-          if (!cat) throw new NotFoundException('Categoría no encontrada');
-          producto.categoria = cat as any;
-          (producto as any).categoriaId = cat.id;
-        }
+    // MANEJO DE CATEGORÍA
+    if (hasCategoriaProp) {
+      const rawCatId = anyDto.categoriaId ?? anyDto.categoria_id;
+      // 🔥 CRÍTICO: No convertir null a número, mantenerlo como null
+      let catId;
+      if (rawCatId === null) {
+        catId = null;
+      } else if (rawCatId === undefined) {
+        catId = undefined;
       } else {
-        this.logger.log(`[updateProducto] no se indicó categoria en el DTO; no se tocará la FK`);
+        catId = Number(rawCatId);
       }
+      
+      this.logger.log(`[updateProducto] categoriaId recibido=${JSON.stringify(rawCatId)} → procesado: ${JSON.stringify(catId)} (tipo: ${typeof catId})`);
+      
+      if (catId === null) {
+        (producto as any).categoriaId = null;
+        this.logger.log(`[updateProducto] ✅ Desvinculando categoría (NULL)`);
+      } else if (catId !== undefined && !Number.isNaN(catId) && catId > 0) {
+        const cat = await this.categoriaRepo.findOneBy({ id: catId });
+        if (!cat) throw new NotFoundException(`Categoría con ID ${catId} no encontrada`);
+        (producto as any).categoriaId = cat.id;
+        this.logger.log(`[updateProducto] ✅ Vinculando categoría: ${cat.id}`);
+      }
+    } else {
+      this.logger.log(`[updateProducto] categoriaId no incluido en DTO; no se modificará`);
+    }
 
-    // Guardar
-    const saved = await this.productosRepo.save(producto);
-    this.logger.log(`[updateProducto] saved id=${saved.id}`);
+    // 🔥 GUARDAR - Usar QueryBuilder con valores explícitos del DTO procesado
+    // Construir el objeto de actualización SOLO con lo que vino en el DTO
+    const updateData: any = {};
+    
+    // Copiar SOLO las propiedades que vinieron en el DTO (excepto id y FKs que manejamos especialmente)
+    for (const key of Object.keys(anyDto)) {
+      if (['id', 'subcategoriaId', 'categoriaId', 'subcategoria_id', 'categoria_id'].includes(key)) continue;
+      const val = anyDto[key];
+      if (val !== undefined) {
+        updateData[key] = val;
+      }
+    }
+
+    // 🔥 FORZAR subcategoriaId explícitamente si vino en el DTO (usar el valor que YA procesamos arriba)
+    if (hasSubcategoriaProp) {
+      // NO usar producto.subcategoriaId porque puede tener el valor antiguo de la BD
+      // Usar el valor procesado directamente
+      const rawSubId = anyDto.subcategoriaId ?? anyDto.subcategoria_id;
+      let subId;
+      if (rawSubId === null) {
+        subId = null;
+      } else if (rawSubId === undefined) {
+        subId = undefined;
+      } else {
+        subId = Number(rawSubId);
+      }
+      
+      updateData.subcategoriaId = subId === null ? null : (subId > 0 ? subId : null);
+      this.logger.log(`[updateProducto] 🔥 Forzando update con subcategoriaId=${JSON.stringify(updateData.subcategoriaId)}`);
+    }
+
+    // 🔥 FORZAR categoriaId explícitamente si vino en el DTO
+    if (hasCategoriaProp) {
+      // NO usar producto.categoriaId porque puede tener el valor antiguo de la BD
+      // Usar el valor procesado directamente
+      const rawCatId = anyDto.categoriaId ?? anyDto.categoria_id;
+      let catId;
+      if (rawCatId === null) {
+        catId = null;
+      } else if (rawCatId === undefined) {
+        catId = undefined;
+      } else {
+        catId = Number(rawCatId);
+      }
+      
+      updateData.categoriaId = catId === null ? null : (catId > 0 ? catId : null);
+      this.logger.log(`[updateProducto] 🔥 Forzando update con categoriaId=${JSON.stringify(updateData.categoriaId)}`);
+    }
+
+    this.logger.log(`[updateProducto] 📦 Objeto completo a actualizar: ${JSON.stringify(updateData)}`);
+
+    // Ejecutar update con QueryBuilder
+    const qb = this.productosRepo.createQueryBuilder()
+      .update()
+      .where('id = :id', { id });
+
+    const result = await qb.set(updateData).execute();
+    this.logger.log(`[updateProducto] ✅ Producto actualizado en BD con QueryBuilder - affected: ${result.affected}`);
+
+    // 🔥 Verificar que se guardó correctamente haciendo una consulta directa
+    const verificacion = await this.productosRepo
+      .createQueryBuilder('p')
+      .select(['p.id', 'p.subcategoriaId', 'p.categoriaId'])
+      .where('p.id = :id', { id })
+      .getOne();
+    
+    this.logger.log(`[updateProducto] 🔍 Verificación BD - subcategoriaId=${verificacion?.subcategoriaId}, categoriaId=${verificacion?.categoriaId}`);
 
     // Actualizar inventario si aplica
-    if ((anyDto as any).stock !== undefined || (anyDto as any).ubicacion !== undefined) {
+    if (anyDto.stock !== undefined || anyDto.ubicacion !== undefined) {
       await this.inventarioService.actualizarInventarioPorProductoId(
         id,
-        typeof (anyDto as any).stock === 'number' ? (anyDto as any).stock : 0,
-        typeof (anyDto as any).ubicacion === 'string' ? (anyDto as any).ubicacion : undefined,
+        typeof anyDto.stock === 'number' ? anyDto.stock : 0,
+        typeof anyDto.ubicacion === 'string' ? anyDto.ubicacion : undefined,
       );
     }
 
     // Actualizar precio si viene
-    const nuevoPrecioParaActualizar = (anyDto as any).precio_venta !== undefined && (anyDto as any).precio_venta !== null
-      ? (anyDto as any).precio_venta
-      : (anyDto as any).precio;
+    const nuevoPrecioParaActualizar = anyDto.precio_venta !== undefined && anyDto.precio_venta !== null
+      ? anyDto.precio_venta
+      : anyDto.precio;
     if (nuevoPrecioParaActualizar !== undefined && nuevoPrecioParaActualizar !== null) {
       await this.preciosService.actualizarPrecioPorProductoId(id, nuevoPrecioParaActualizar);
     }
 
     return this.findOneWithRelations(id);
   }
+
 
   // 🔹 DELETE
   async remove(id: number): Promise<void> {

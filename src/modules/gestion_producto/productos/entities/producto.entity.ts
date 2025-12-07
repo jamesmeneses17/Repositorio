@@ -52,7 +52,7 @@ export class Producto {
   @Column({ name: 'categoria_id', type: 'int', nullable: true })
   categoriaId: number | null;
 
-  @ManyToOne(() => Categoria, { eager: true, nullable: true })
+  @ManyToOne(() => Categoria, { eager: false, nullable: true })
   @JoinColumn({ name: 'categoria_id' })
   categoria: Categoria | null;
 
@@ -62,10 +62,11 @@ export class Producto {
   @Column({ name: 'subcategoria_id', type: 'int', nullable: true })
   subcategoriaId: number | null; 
 
-  // Apunta a la entidad Subcategoria
-  @ManyToOne(() => Subcategoria, { eager: true, nullable: true })
+  // Apunta a la entidad Subcategoria - eager FALSE para evitar cargas automáticas
+  @ManyToOne(() => Subcategoria, { eager: false, nullable: true })
   @JoinColumn({ name: 'subcategoria_id' }) // Debe coincidir con el nombre de la columna en la BD
   subcategoria: Subcategoria | null; // El nombre de la propiedad cambia a 'subcategoria'
+
   
   // -----------------------------------------------------
 
