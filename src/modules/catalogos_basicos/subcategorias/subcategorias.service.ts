@@ -28,7 +28,23 @@ export class SubcategoriasService {
   }
 
   async findAll(): Promise<Subcategoria[]> {
-    return this.subcategoriaRepo.find({ relations: ['categoria'] });
+    // Cargar subcategorías con sus categorías relacionadas (eager loading)
+    // y asegurarse de que cada categoria tenga su categoria_principal cargada
+    return this.subcategoriaRepo
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.categoria', 'c')
+      .leftJoinAndSelect('c.categoria_principal', 'cp')
+      .getMany();
+  }
+
+  async findAllWithPrincipalCategory(): Promise<any[]> {
+    // Usar QueryBuilder para hacer un JOIN y traer categoriaPrincipalId
+    return this.subcategoriaRepo
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.categoria', 'c')
+      .leftJoin('c.categoria_principal', 'cp')
+      .addSelect('cp.id', 'categoriaPrincipalId')
+      .getRawMany();
   }
 
   async findOne(id: number): Promise<Subcategoria> {
