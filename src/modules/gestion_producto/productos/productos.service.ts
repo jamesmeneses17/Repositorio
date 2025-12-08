@@ -97,6 +97,7 @@ async getAllProductos(
       // ✅ CORRECCIÓN: Exponer el nombre de la CATEGORÍA real (no subcategoría)
       // Si tiene subcategoría, usar el nombre de su categoría padre; sino usar la categoría directa
       categoria: p.subcategoria?.categoria?.nombre ?? (p as any).categoria?.nombre ?? null,
+      subcategoria_id: p.subcategoriaId, // Exponer explícitamente subcategoriaId como subcategoria_id
       stock: stockActual,
       precio: precioActual, // ← este campo ahora es costo
       precio_venta: precioVentaActual,
@@ -265,6 +266,8 @@ async getAllProductos(
     (producto as any).compras = inventarioRegistro?.compras ?? 0;
     (producto as any).ventas = inventarioRegistro?.ventas ?? 0;
     (producto as any).ubicacion = inventarioRegistro?.ubicacion ?? null;
+    // Exponer subcategoria_id explícitamente
+    (producto as any).subcategoria_id = producto.subcategoriaId;
 
     // ✅ CORRECCIÓN: Exponer 'categoria' como el nombre de la CATEGORÍA real (no subcategoría)
     // Si tiene subcategoría, usar el nombre de su categoría padre; sino usar la categoría directa

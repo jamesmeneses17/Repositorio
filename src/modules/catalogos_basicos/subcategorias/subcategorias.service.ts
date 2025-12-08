@@ -28,13 +28,18 @@ export class SubcategoriasService {
   }
 
   async findAll(): Promise<Subcategoria[]> {
-    // Cargar subcategorías con sus categorías relacionadas (eager loading)
-    // y asegurarse de que cada categoria tenga su categoria_principal cargada
-    return this.subcategoriaRepo
+    // Cargar subcategorías con el campo categoria_id explícito en la respuesta
+    const result = await this.subcategoriaRepo
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.categoria', 'c')
       .leftJoinAndSelect('c.categoria_principal', 'cp')
       .getMany();
+    
+    // Asegurar que categoria_id está incluido en cada objeto retornado
+    return result.map(s => ({
+      ...s,
+      categoria_id: s.categoriaId, // Exponer como categoria_id para compatibilidad frontend
+    }));
   }
 
   async findAllWithPrincipalCategory(): Promise<any[]> {
