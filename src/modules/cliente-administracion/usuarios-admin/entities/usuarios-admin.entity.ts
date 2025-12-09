@@ -19,4 +19,10 @@ export class UsuarioAdmin {
 
     @CreateDateColumn()
     fecha_creacion: Date;
+
+    @Column({ nullable: true })
+    reset_password_token: string;
+
+    @Column({ type: 'datetime', nullable: true })
+    reset_password_expires: Date;
 }

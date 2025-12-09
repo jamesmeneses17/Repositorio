@@ -44,4 +44,11 @@ export class CreateProductoDto {
   @IsOptional()
   @Min(0)
   precio_venta?: number;
+
+  // Porcentaje de promoción opcional (0-100)
+  @ApiPropertyOptional({ description: 'Porcentaje de promoción (0-100%), por defecto 0' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  promocion_porcentaje?: number;
 }

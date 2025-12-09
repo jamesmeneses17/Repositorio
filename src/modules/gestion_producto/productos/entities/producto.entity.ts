@@ -26,6 +26,10 @@ export class Producto {
   @Column('decimal', { precision: 10, scale: 2, default: 0, name: 'precio_venta' })
   precio_venta: number;
 
+  // ✅ Porcentaje de promoción (0-100%)
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  promocion_porcentaje: number;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   ficha_tecnica_url?: string;
 

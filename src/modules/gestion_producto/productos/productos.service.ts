@@ -389,7 +389,7 @@ async getAllProductos(
       this.logger.log(`[updateProducto] 🔥 Forzando update con subcategoriaId=${JSON.stringify(updateData.subcategoriaId)}`);
     }
 
-    // 🔥 FORZAR categoriaId explícitamente si vino en el DTO
+    //  FORZAR categoriaId explícitamente si vino en el DTO
     if (hasCategoriaProp) {
       // NO usar producto.categoriaId porque puede tener el valor antiguo de la BD
       // Usar el valor procesado directamente
