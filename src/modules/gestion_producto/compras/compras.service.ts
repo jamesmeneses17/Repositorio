@@ -7,6 +7,7 @@ import { UpdateCompraDto } from './dto/update-compra.dto';
 
 import { Compra } from './entities/compra.entity';
 import { Producto } from '../productos/entities/producto.entity';
+import { Inventario } from '../inventario/entities/inventario.entity';
 
 @Injectable()
 export class ComprasService {
@@ -15,41 +16,115 @@ export class ComprasService {
     private readonly compraRepo: Repository<Compra>,
     @InjectRepository(Producto)
     private readonly productoRepo: Repository<Producto>,
+    @InjectRepository(Inventario)
+    private readonly inventarioRepo: Repository<Inventario>,
   ) {}
 
   // ===== CREAR =====
   async create(dto: CreateCompraDto) {
-    // Normalizar fecha a YYYY-MM-DD porque la columna es de tipo DATE en MySQL
-    const fecha = dto.fecha ? String(dto.fecha).split('T')[0] : null;
 
-    // Mapear producto_id -> productoId (DTO usa snake_case desde front)
-    const data: any = {
-      ...dto,
-      fecha,
-    };
+    // Normalizar fecha: si no viene, usar undefined (NO null)
+    const fechaNormalizada =
+      dto.fecha ? String(dto.fecha).split('T')[0] : undefined;
+
+    // Mapeo manual ANTES de crear "data"
+    let productoId: number | undefined = undefined;
 
     if ((dto as any).producto_id !== undefined) {
-      data.productoId = (dto as any).producto_id;
-      delete data.producto_id;
+      productoId = (dto as any).producto_id;
     }
 
-    // Si tenemos productoId, obtener su categoriaId y asignarlo (mantener consistencia con la BD)
-    if (data.productoId) {
-      const producto = await this.productoRepo.findOne({ where: { id: data.productoId } });
+    const data: Partial<Compra> = {
+      ...dto,
+      fecha: fechaNormalizada,
+      productoId,
+    };
+
+    // Cargar producto si viene productoId
+    let producto: Producto | null = null;
+    if (productoId) {
+      producto = await this.productoRepo.findOne({
+        where: { id: productoId },
+        relations: ['inventario', 'subcategoria'],
+      });
       if (!producto) throw new NotFoundException('Producto no encontrado');
-      // Obtener categoriaId a través de la subcategoria (si existe)
-      data.categoriaId = (producto.subcategoria && (producto.subcategoria as any).categoriaId) ?? null;
+
+      // Garantizar registro de inventario asociado
+      if (!producto.inventario) {
+        const inventarioCreado = this.inventarioRepo.create({
+          productoId: producto.id,
+          stock: 0,
+          compras: 0,
+          ventas: 0,
+        });
+        const inventarioGuardado = await this.inventarioRepo.save(inventarioCreado);
+        producto.inventario = inventarioGuardado;
+      }
+
+      data.categoriaId =
+        (producto.subcategoria as any)?.categoriaId ?? undefined;
     }
 
     const compra = this.compraRepo.create(data);
-    return this.compraRepo.save(compra);
+    const compraGuardada = await this.compraRepo.save(compra);
+
+    // ===== ACTUALIZAR INVENTARIO Y PRECIO DE COSTO =====
+    if (producto && data.costo_unitario && data.cantidad) {
+      const costoUnitario = Number(data.costo_unitario);
+      const cantidad = Number(data.cantidad);
+
+      const stockAnterior = producto.inventario?.stock ?? 0;
+      const precioCostoAnterior = Number(producto.precio_costo) || 0;
+
+      let precioCostoNuevo: number;
+
+      if (stockAnterior === 0) {
+        precioCostoNuevo = costoUnitario;
+      } else {
+        precioCostoNuevo =
+          (precioCostoAnterior * stockAnterior +
+            costoUnitario * cantidad) /
+          (stockAnterior + cantidad);
+      }
+
+      await this.productoRepo.update(producto.id, {
+        precio_costo: precioCostoNuevo,
+      });
+
+      if (producto.inventario) {
+        await this.inventarioRepo.update(producto.inventario.id, {
+          stock: stockAnterior + cantidad,
+          compras: (producto.inventario.compras ?? 0) + cantidad,
+        });
+      } else {
+        // Crear registro de inventario si no existía
+        const nuevoInventario = this.inventarioRepo.create({
+          productoId: producto.id,
+          stock: stockAnterior + cantidad,
+          compras: cantidad,
+          ventas: 0,
+        });
+        await this.inventarioRepo.save(nuevoInventario);
+      }
+
+      const productoActualizado = await this.productoRepo.findOne({
+        where: { id: producto.id },
+        relations: ['inventario'],
+      });
+
+      if (productoActualizado) {
+        compraGuardada.producto = productoActualizado;
+      }
+    }
+
+    return compraGuardada;
   }
 
-  // ===== LISTAR TODAS =====
+  // ===== LISTAR =====
   findAll() {
     return this.compraRepo.find({
-      relations: ['producto'],
-      order: { id: 'DESC' }
+      relations: ['producto', 'producto.inventario'],
+      order: { id: 'DESC' },
     });
   }
 
@@ -57,38 +132,41 @@ export class ComprasService {
   async findOne(id: number) {
     const compra = await this.compraRepo.findOne({
       where: { id },
-      relations: ['producto'],
+      relations: ['producto', 'producto.inventario'],
     });
 
-    if (!compra) {
-      throw new NotFoundException('Compra no encontrada');
-    }
+    if (!compra) throw new NotFoundException('Compra no encontrada');
 
     return compra;
   }
 
   // ===== ACTUALIZAR =====
   async update(id: number, dto: UpdateCompraDto) {
-    // Preparar datos antes de preload: normalizar fecha y mapear producto_id
     const data: any = { id, ...dto };
 
     if ((dto as any).fecha) {
-      data.fecha = String((dto as any).fecha).split('T')[0];
+      data.fecha = String(dto.fecha).split('T')[0];
     }
 
     if ((dto as any).producto_id !== undefined) {
-      data.productoId = (dto as any).producto_id;
-      delete data.producto_id;
-      const producto = await this.productoRepo.findOne({ where: { id: data.productoId } });
+      const productoId = (dto as any).producto_id;
+
+      data.productoId = productoId;
+
+      const producto = await this.productoRepo.findOne({
+        where: { id: productoId },
+        relations: ['subcategoria'],
+      });
+
       if (!producto) throw new NotFoundException('Producto no encontrado');
-      data.categoriaId = (producto.subcategoria && (producto.subcategoria as any).categoriaId) ?? null;
+
+      data.categoriaId =
+        (producto.subcategoria as any)?.categoriaId ?? undefined;
     }
 
     const compra = await this.compraRepo.preload(data);
 
-    if (!compra) {
-      throw new NotFoundException('Compra no encontrada');
-    }
+    if (!compra) throw new NotFoundException('Compra no encontrada');
 
     return this.compraRepo.save(compra);
   }
