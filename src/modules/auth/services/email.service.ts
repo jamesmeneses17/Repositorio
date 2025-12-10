@@ -68,17 +68,6 @@ export class EmailService {
                             </a>
                         </div>
                         
-                        <p style="font-size: 14px; color: #7f8c8d;">
-                            O copia y pega el siguiente enlace en tu navegador:
-                        </p>
-                        <p style="font-size: 14px; background-color: #ecf0f1; padding: 10px; border-radius: 5px; word-break: break-all;">
-                            ${resetUrl}
-                        </p>
-                        
-                        <p style="font-size: 14px; color: #e74c3c; margin-top: 20px;">
-                            ⚠️ <strong>Este enlace expirará en 1 hora.</strong>
-                        </p>
-                        
                         <p style="font-size: 14px; color: #7f8c8d; margin-top: 20px;">
                             Si no solicitaste este cambio, puedes ignorar este correo de forma segura.
                         </p>
@@ -99,8 +88,6 @@ export class EmailService {
                 
                 Visita el siguiente enlace para crear una nueva contraseña:
                 ${resetUrl}
-                
-                Este enlace expirará en 1 hora.
                 
                 Si no solicitaste este cambio, puedes ignorar este correo de forma segura.
             `,
@@ -131,7 +118,7 @@ export class EmailService {
                 </head>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
                     <div style="background-color: #f4f4f4; border-radius: 10px; padding: 30px;">
-                        <h1 style="color: #27ae60; text-align: center;">✅ Contraseña Actualizada</h1>
+                        <h1 style="color: #27ae60; text-align: center;">Contraseña Actualizada</h1>
                         
                         <p style="font-size: 16px;">Hola,</p>
                         
