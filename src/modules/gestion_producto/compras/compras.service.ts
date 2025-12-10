@@ -74,18 +74,35 @@ export class ComprasService {
       const cantidad = Number(data.cantidad);
 
       const stockAnterior = producto.inventario?.stock ?? 0;
-      const precioCostoAnterior = Number(producto.precio_costo) || 0;
 
-      let precioCostoNuevo: number;
+      // 📊 CÁLCULO DE PRECIO COSTO: PROMEDIO SIMPLE DE TODAS LAS COMPRAS
+      // Obtener todas las compras del producto para calcular el promedio simple
+      const todasLasCompras = await this.compraRepo.find({
+        where: { productoId: producto.id },
+        order: { id: 'ASC' }
+      });
 
-      if (stockAnterior === 0) {
-        precioCostoNuevo = costoUnitario;
-      } else {
-        precioCostoNuevo =
-          (precioCostoAnterior * stockAnterior +
-            costoUnitario * cantidad) /
-          (stockAnterior + cantidad);
+      // Sumar todos los costos unitarios (incluyendo la compra actual que ya guardamos)
+      let sumaCostos = costoUnitario; // La compra actual
+      let numeroCompras = 1;
+
+      // Sumar las compras anteriores
+      for (const compraAnterior of todasLasCompras) {
+        if (compraAnterior.id !== compraGuardada.id) {
+          sumaCostos += Number(compraAnterior.costo_unitario);
+          numeroCompras++;
+        }
       }
+
+      // Promedio simple: suma de costos / número de compras
+      const precioCostoNuevo = sumaCostos / numeroCompras;
+
+      console.log(`✅ Precio costo actualizado para producto ${producto.id}:`, {
+        numeroCompras,
+        sumaCostos: sumaCostos.toFixed(2),
+        precioCostoNuevo: precioCostoNuevo.toFixed(2),
+        metodo: 'Promedio Simple'
+      });
 
       await this.productoRepo.update(producto.id, {
         precio_costo: precioCostoNuevo,
