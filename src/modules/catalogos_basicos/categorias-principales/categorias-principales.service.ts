@@ -38,7 +38,15 @@ export class CategoriasPrincipalesService {
   }
 
   async update(id: number, dto: UpdateCategoriaPrincipalDto) {
-    await this.repo.update(id, dto);
+    const dataToUpdate: any = { ...dto };
+    
+    // Mapear imagen_url a imagenUrl
+    if ((dto as any)['imagen_url'] !== undefined) {
+      dataToUpdate.imagenUrl = (dto as any)['imagen_url'];
+      delete dataToUpdate['imagen_url'];
+    }
+    
+    await this.repo.update(id, dataToUpdate);
     return this.findOne(id);
   }
 
