@@ -1,4 +1,3 @@
-
 import { IsNotEmpty, IsString, MaxLength, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateCategoriaDto {
@@ -9,7 +8,11 @@ export class CreateCategoriaDto {
 
   @IsNumber()
   @IsOptional()
-  estadoId?: number;
+  activo?: number;
+
+  @IsString()
+  @IsOptional()
+  imagen_url?: string;
 
   @IsNumber()
   @IsOptional()

@@ -12,6 +12,12 @@ export class Subcategoria {
     @Column({ type: 'varchar', length: 100, unique: true })
     nombre: string;
 
+    @Column({ type: 'tinyint', default: 1 })
+    activo: number;
+
+    @Column({ name: 'imagen_url', type: 'varchar', length: 500, nullable: true })
+    imagenUrl: string | null;
+
     @Column({ name: 'categoria_id', type: 'int' })
     categoriaId: number;
 

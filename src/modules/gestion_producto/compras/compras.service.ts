@@ -75,14 +75,11 @@ export class ComprasService {
 
       const stockAnterior = producto.inventario?.stock ?? 0;
 
-      // 📊 CÁLCULO DE PRECIO COSTO: PROMEDIO SIMPLE DE TODAS LAS COMPRAS
-      // Obtener todas las compras del producto para calcular el promedio simple
       const todasLasCompras = await this.compraRepo.find({
         where: { productoId: producto.id },
         order: { id: 'ASC' }
       });
 
-      // Sumar todos los costos unitarios (incluyendo la compra actual que ya guardamos)
       let sumaCostos = costoUnitario; // La compra actual
       let numeroCompras = 1;
 

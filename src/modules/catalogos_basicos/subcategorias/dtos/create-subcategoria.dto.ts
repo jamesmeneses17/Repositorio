@@ -10,4 +10,10 @@ export interface CreateSubcategoriaDto {
 
     /** ID de la categoría padre (tabla 'categorias'). @example 5 */
     categoria_id: number;
+
+    /** Estado activo (1) o inactivo (0). @example 1 */
+    activo?: number;
+
+    /** URL de la imagen de la subcategoría. @example "https://example.com/image.jpg" */
+    imagen_url?: string;
 }

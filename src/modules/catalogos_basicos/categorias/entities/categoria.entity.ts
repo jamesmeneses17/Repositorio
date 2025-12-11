@@ -1,5 +1,4 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
-import { Estado } from '../../estados/entities/estado.entity';
 import { Subcategoria } from '../../subcategorias/entities/subcategoria.entity';
 import { CategoriaPrincipal } from '../../categorias-principales/entitiies/categoria-principal.entity';
 
@@ -11,12 +10,11 @@ export class Categoria {
     @Column({ type: 'varchar', length: 100, unique: true })
     nombre: string;
 
-    @Column({ name: 'estado_id', type: 'int', default: 1 })
-    estadoId: number;
+    @Column({ type: 'tinyint', default: 1 })
+    activo: number;
 
-    @ManyToOne(() => Estado, { eager: true })
-    @JoinColumn({ name: 'estado_id' })
-    estado: Estado;
+    @Column({ name: 'imagen_url', type: 'varchar', length: 500, nullable: true })
+    imagenUrl: string | null;
 
     @OneToMany(() => Subcategoria, (subcategoria) => subcategoria.categoria)
     subcategorias: Subcategoria[];

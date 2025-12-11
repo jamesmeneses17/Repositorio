@@ -5,13 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { VentasService } from './ventas.service';
 import { VentasController } from './ventas.controller';
 import { Venta } from './entities/venta.entity';
-import { Producto } from '../productos/entities/producto.entity';
-import { Inventario } from '../inventario/entities/inventario.entity';
 
 @Module({
   imports: [
     // Registra la entidad Venta para que TypeORM pueda inyectar el repositorio
-    TypeOrmModule.forFeature([Venta, Producto, Inventario]), 
+    TypeOrmModule.forFeature([Venta]), 
   ],
   controllers: [VentasController],
   providers: [VentasService],

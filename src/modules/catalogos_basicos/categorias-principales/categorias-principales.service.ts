@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UpdateCategoriaPrincipalDto } from './dto/update-categoria-principal.dto';
 import { CategoriaPrincipal } from './entitiies/categoria-principal.entity';
-import { CreateCategoriaPrincipalDto } from './dto/create-categoria-principal.dto.tscreate-categoria-principal.dto';
+import { CreateCategoriaPrincipalDto } from './dto/create-categoria-principal.dto';
 
 @Injectable()
 export class CategoriasPrincipalesService {
@@ -13,7 +13,11 @@ export class CategoriasPrincipalesService {
   ) {}
 
   create(dto: CreateCategoriaPrincipalDto) {
-    const nueva = this.repo.create(dto);
+    const nueva = this.repo.create({
+      ...dto,
+      activo: dto.activo ?? 1,
+      imagenUrl: (dto as any).imagen_url,
+    });
     return this.repo.save(nueva);
   }
 

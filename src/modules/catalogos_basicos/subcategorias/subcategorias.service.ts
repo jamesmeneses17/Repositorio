@@ -21,6 +21,8 @@ export class SubcategoriasService {
       nombre: createDto.nombre,
       // mapear snake_case del DTO a camelCase de la entidad
       categoriaId: (createDto as any).categoria_id,
+      activo: (createDto as any).activo ?? 1,
+      imagenUrl: (createDto as any).imagen_url,
     };
 
     const nueva = this.subcategoriaRepo.create(data);
@@ -62,6 +64,8 @@ export class SubcategoriasService {
     const payload: any = {};
     if ((updateDto as any).nombre !== undefined) payload.nombre = (updateDto as any).nombre;
     if ((updateDto as any).categoria_id !== undefined) payload.categoriaId = (updateDto as any).categoria_id;
+    if ((updateDto as any).activo !== undefined) payload.activo = (updateDto as any).activo;
+    if ((updateDto as any).imagen_url !== undefined) payload.imagenUrl = (updateDto as any).imagen_url;
 
     const preloaded = await this.subcategoriaRepo.preload({ id, ...payload });
     if (!preloaded) throw new NotFoundException(`Subcategoría con ID ${id} no encontrada.`);

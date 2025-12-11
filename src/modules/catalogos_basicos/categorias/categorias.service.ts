@@ -59,7 +59,7 @@ export class CategoriasService {
 
     const dataToSave: any = {
       ...dto,
-      estadoId: dto.estadoId || 1,
+      activo: dto.activo ?? 1,
     };
 
     // Soporte para payloads en snake_case desde el frontend
@@ -67,6 +67,11 @@ export class CategoriasService {
       dataToSave.categoriaPrincipalId = (dto as any)['categoria_principal_id'];
     } else if ((dto as any).categoriaPrincipalId !== undefined) {
       dataToSave.categoriaPrincipalId = (dto as any).categoriaPrincipalId;
+    }
+
+    // Mapear imagen_url a imagenUrl
+    if ((dto as any)['imagen_url'] !== undefined) {
+      dataToSave.imagenUrl = (dto as any)['imagen_url'];
     }
 
     try {
@@ -82,7 +87,7 @@ export class CategoriasService {
 
   async findAll(): Promise<Categoria[]> {
     return await this.categoriaRepository.find({
-      relations: ['estado', 'categoria_principal'],
+      relations: ['categoria_principal'],
       order: { id: 'DESC' },
     });
   }
@@ -90,7 +95,7 @@ export class CategoriasService {
   async findOne(id: number): Promise<Categoria> {
     const categoria = await this.categoriaRepository.findOne({
       where: { id },
-      relations: ['estado', 'categoria_principal'],
+      relations: ['categoria_principal'],
     });
     if (!categoria)
       throw new NotFoundException(`Categoría con id ${id} no encontrada`);
@@ -117,6 +122,10 @@ export class CategoriasService {
     if ((dto as any)['categoria_principal_id'] !== undefined) {
       dataToUpdate.categoriaPrincipalId = (dto as any)['categoria_principal_id'];
       delete dataToUpdate['categoria_principal_id'];
+    }
+    if ((dto as any)['imagen_url'] !== undefined) {
+      dataToUpdate.imagenUrl = (dto as any)['imagen_url'];
+      delete dataToUpdate['imagen_url'];
     }
 
     await this.categoriaRepository.update(id, dataToUpdate);
