@@ -15,6 +15,15 @@ import { Precio } from '../precios/entities/precio.entity';
 import { InventarioService } from '../inventario/inventario.service';
 import { PreciosService } from '../precios/precios.service';
 
+import * as ExcelJS from 'exceljs';
+import { Buffer } from 'buffer';
+  /**
+   * Exporta productos a un archivo Excel (.xlsx)
+   * @param filtros Opcional: filtros para la consulta (puedes expandir según necesidad)
+   * @returns Buffer del archivo Excel
+   */
+ 
+
 // 📌 UMBRAL FIJO DE STOCK MÍNIMO
 const MIN_STOCK_THRESHOLD = 5;
 
@@ -53,7 +62,69 @@ export class ProductosService {
     private readonly dataSource: DataSource,
   ) {}
 
+ async exportarProductosExcel(): Promise<Buffer> {
+    // 1. Consulta de todos los productos sin filtros
+    const productos = await this.productosRepo.createQueryBuilder('producto')
+      .leftJoinAndSelect('producto.categoria', 'categoria')
+      .leftJoinAndSelect('producto.subcategoria', 'subcategoria')
+      .leftJoinAndSelect('producto.inventario', 'inventario')
+      .leftJoinAndSelect('producto.precios', 'precios', 'precios.fecha_fin IS NULL')
+      .leftJoinAndSelect('producto.estado', 'estado')
+      .leftJoinAndSelect('producto.imagenes', 'imagenes')
+      .getMany();
 
+    // 2. Crear workbook y worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Productos');
+
+    // 3. Definir columnas
+    worksheet.columns = [
+      { header: 'Código', key: 'codigo', width: 15 },
+      { header: 'Nombre', key: 'nombre', width: 30 },
+      { header: 'Categoría', key: 'categoria', width: 20 },
+      { header: 'Subcategoría', key: 'subcategoria', width: 20 },
+      { header: 'Stock', key: 'stock', width: 10 },
+      { header: 'Precio', key: 'precio', width: 12 },
+      { header: 'Precio Venta', key: 'precio_venta', width: 15 },
+      { header: 'Promoción %', key: 'promocion_porcentaje', width: 12 },
+      { header: 'Precio con Descuento', key: 'precio_con_descuento', width: 18 },
+      { header: 'Utilidad / Producto', key: 'utilidad', width: 18 },
+      { header: 'Valor Inventario', key: 'valor_inventario', width: 18 },
+      { header: 'Estado', key: 'estado', width: 15 },
+    ];
+
+    // 4. Agregar filas
+    productos.forEach((p) => {
+      // Cálculos igual que en la API
+      const precioVenta = Number(p.precios?.[0]?.valor_unitario ?? p.precio_venta ?? 0);
+      const costo = Number(p.precio_costo ?? 0);
+      const promo = Number(p.promocion_porcentaje ?? 0);
+      const stock = Number(p.inventario?.stock ?? 0);
+      const precioConDescuento = promo > 0 ? precioVenta - (precioVenta * promo) / 100 : precioVenta;
+      const utilidad = precioConDescuento - costo;
+      const valorInventario = costo * stock;
+
+      worksheet.addRow({
+        codigo: p.codigo,
+        nombre: p.nombre,
+        categoria: p.categoria?.nombre ?? '',
+        subcategoria: p.subcategoria?.nombre ?? '',
+        stock: stock,
+        precio: costo,
+        precio_venta: precioVenta,
+        promocion_porcentaje: promo > 0 ? `${promo}%` : '-',
+        precio_con_descuento: precioConDescuento,
+        utilidad: utilidad,
+        valor_inventario: valorInventario,
+        estado: p.estado?.nombre ?? '',
+      });
+    });
+
+    // 5. Generar buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    // Asegura que el resultado sea un Buffer de Node.js
+    return Buffer.from(buffer);
+  }
   // Elimina una imagen de producto por su ID
   async deleteImagenById(imagenId: number): Promise<{ deleted: boolean }> {
     const imagen = await this.productoImagenRepo.findOne({ where: { id: imagenId } });
@@ -95,8 +166,8 @@ async getAllProductos(
 
   // 3. Calcular stock y usar precio de costo (NO precio de venta)
   const productosCalculados = productosRaw.map((p) => {
-  const inventarioRegistro = p.inventario; // ahora es objeto OneToOne
-  const stockActual = inventarioRegistro?.stock ?? 0;
+    const inventarioRegistro = p.inventario;
+    const stockActual = inventarioRegistro?.stock ?? 0;
     const stockMinimo = MIN_STOCK_THRESHOLD;
 
     let estadoStock: 'Disponible' | 'Stock Bajo' | 'Agotado';
@@ -104,27 +175,30 @@ async getAllProductos(
     else if (stockActual <= stockMinimo) estadoStock = 'Stock Bajo';
     else estadoStock = 'Disponible';
 
-    // ✅ Aquí el cambio: usar precio_costo directamente para el campo 'precio' (costo)
     const precioActual = p.precio_costo ?? 0;
-    // Precio de venta efectivo (si existe un registro en 'precios' tomar su valor, sino usar el campo producto.precio_venta)
     const precioVentaActual = p.precios?.[0]?.valor_unitario ?? p.precio_venta ?? 0;
+    const promocionPorcentaje = Number(p.promocion_porcentaje ?? 0);
+    const precioConDescuento = promocionPorcentaje > 0 ? precioVentaActual - (precioVentaActual * promocionPorcentaje) / 100 : precioVentaActual;
+    const utilidad = precioConDescuento - precioActual;
+    const valorInventario = precioActual * stockActual;
 
     return {
       ...p,
-      // ✅ CORRECCIÓN: Exponer el nombre de la CATEGORÍA real (no subcategoría)
-      // Si tiene subcategoría, usar el nombre de su categoría padre; sino usar la categoría directa
       categoria: p.subcategoria?.categoria?.nombre ?? (p as any).categoria?.nombre ?? null,
-      subcategoria_id: p.subcategoriaId, // Exponer explícitamente subcategoriaId como subcategoria_id
+      subcategoria_id: p.subcategoriaId,
       stock: stockActual,
-      precio: precioActual, // ← este campo ahora es costo
+      precio: precioActual,
       precio_venta: precioVentaActual,
       estado_stock: estadoStock,
       stockMinimo,
-      // Exponer compras/ventas/ubicacion en la raíz para facilitar consumo del frontend
       compras: inventarioRegistro?.compras ?? 0,
       ventas: inventarioRegistro?.ventas ?? 0,
       ubicacion: inventarioRegistro?.ubicacion ?? null,
-    } as ProductoConStockCalculado;
+      promocion_porcentaje: promocionPorcentaje,
+      precio_con_descuento: precioConDescuento,
+      utilidad: utilidad,
+      valor_inventario: valorInventario,
+    };
   });
 
   // 4. Filtrar por estado_stock si aplica
