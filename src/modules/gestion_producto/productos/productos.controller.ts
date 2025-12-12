@@ -79,7 +79,7 @@ export class ProductosController {
         res.setHeader('Content-Disposition', 'attachment; filename=productos.xlsx');
         res.send(buffer);
     }
-
+//cambio
     // 🔥 LUEGO LA RUTA DINÁMICA
     @Get(':id')
     findOne(@Param('id') id: string) {
