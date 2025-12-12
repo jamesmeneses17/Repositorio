@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException, Logger } from '@nestj
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Producto } from './entities/producto.entity';
+import { ProductoImagen } from './entities/producto-imagen.entity';
 import { Subcategoria } from '../../catalogos_basicos/subcategorias/entities/subcategoria.entity';
 import { Categoria } from '../../catalogos_basicos/categorias/entities/categoria.entity';
 import { CreateProductoDto } from './dto/create-producto.dto';
@@ -23,6 +24,7 @@ export interface PaginacionResponse<T> {
   total: number;
 }
 
+
 export type ProductoConStockCalculado = Omit<Producto, 'compras'> & {
   stock: number;
   precio: number;
@@ -40,6 +42,8 @@ export class ProductosService {
   constructor(
     @InjectRepository(Producto)
     private readonly productosRepo: Repository<Producto>,
+    @InjectRepository(ProductoImagen)
+    private readonly productoImagenRepo: Repository<ProductoImagen>,
     @InjectRepository(Subcategoria)
     private readonly subcategoriaRepo: Repository<Subcategoria>,
     @InjectRepository(Categoria)
@@ -48,6 +52,17 @@ export class ProductosService {
     private readonly preciosService: PreciosService,
     private readonly dataSource: DataSource,
   ) {}
+
+
+  // Elimina una imagen de producto por su ID
+  async deleteImagenById(imagenId: number): Promise<{ deleted: boolean }> {
+    const imagen = await this.productoImagenRepo.findOne({ where: { id: imagenId } });
+    if (!imagen) {
+      throw new NotFoundException(`Imagen con ID ${imagenId} no encontrada`);
+    }
+    await this.productoImagenRepo.remove(imagen);
+    return { deleted: true };
+  }
 
 async getAllProductos(
   page: number = 1,
@@ -64,7 +79,9 @@ async getAllProductos(
     .leftJoinAndSelect('subcategoria.categoria', 'categoria')
     .leftJoinAndSelect('producto.inventario', 'inventario')
     .leftJoinAndSelect('producto.precios', 'precios', 'precios.fecha_fin IS NULL')
-    .orderBy('producto.id', 'DESC');
+    .leftJoinAndSelect('producto.imagenes', 'imagenes')
+    .orderBy('producto.id', 'DESC')
+    .addOrderBy('imagenes.orden', 'ASC');
 
   if (search) {
     query.andWhere(
@@ -247,6 +264,8 @@ async getAllProductos(
       .leftJoinAndSelect('producto.categoria', 'categoriaDirecta')
       .leftJoinAndSelect('producto.subcategoria', 'subcategoria')
       .leftJoinAndSelect('subcategoria.categoria', 'categoria')
+      .leftJoinAndSelect('producto.imagenes', 'imagenes')
+      .orderBy('imagenes.orden', 'ASC')
       .where('producto.id = :id', { id })
       .getOne();
 
@@ -452,4 +471,32 @@ async getAllProductos(
     const producto = await this.findOneWithRelations(id);
     await this.productosRepo.remove(producto);
   }
+
+  // 🔹 SAVE IMAGE - Guardar una imagen en la tabla producto_imagenes
+  async saveImage(productoId: number, urlImagen: string, orden?: number): Promise<ProductoImagen> {
+    // Validar que el producto existe
+    const producto = await this.productosRepo.findOne({ where: { id: productoId } });
+    if (!producto) {
+      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
+    }
+
+    // Si no se proporciona orden, contar las imágenes existentes y usar la siguiente posición
+    let imagenOrden = orden;
+    if (imagenOrden === undefined || imagenOrden === null) {
+      const totalImagenes = await this.productoImagenRepo.count({
+        where: { productoId },
+      });
+      imagenOrden = totalImagenes;
+    }
+
+    // Crear y guardar la nueva imagen
+    const nuevaImagen = this.productoImagenRepo.create({
+      productoId,
+      url_imagen: urlImagen,
+      orden: imagenOrden,
+    });
+
+    return await this.productoImagenRepo.save(nuevaImagen);
+  }
 }
+

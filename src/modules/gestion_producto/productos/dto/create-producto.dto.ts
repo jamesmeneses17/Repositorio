@@ -29,14 +29,10 @@ export class CreateProductoDto {
   @IsString()
   descripcion?: string;
 
-  // URLs opcionales que pueden crearse vía upload separado
+  // URL de ficha técnica opcional que puede crearse vía upload separado
   @IsOptional()
   @IsString()
   ficha_tecnica_url?: string;
-
-  @IsOptional()
-  @IsString()
-  imagen_url?: string;
 
   // Precio de venta opcional (para creación/edición)
   @ApiPropertyOptional({ description: 'Precio de venta (opcional)' })

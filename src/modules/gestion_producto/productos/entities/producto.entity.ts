@@ -7,6 +7,8 @@ import { Categoria } from '../../../catalogos_basicos/categorias/entities/catego
 import { Precio } from '../../precios/entities/precio.entity';
 import { Compra } from '../../compras/entities/compra.entity';
 import { Subcategoria } from '../../../catalogos_basicos/subcategorias/entities/subcategoria.entity';
+import { ProductoImagen } from './producto-imagen.entity';
+
 @Entity('productos')
 export class Producto {
   @PrimaryGeneratedColumn()
@@ -32,10 +34,6 @@ export class Producto {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   ficha_tecnica_url?: string;
-
-  // URL de imagen principal
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  imagen_url?: string;
 
   // URL opcional para PDF adicional
   @Column({ type: 'varchar', length: 255, nullable: true })
@@ -85,4 +83,8 @@ export class Producto {
   // Relación con compras (un producto puede tener muchas compras)
   @OneToMany(() => Compra, (compra) => compra.producto)
   compras: Compra[];
+
+  // Relación uno a muchos con imágenes
+  @OneToMany(() => ProductoImagen, (imagen) => imagen.producto, { cascade: true })
+  imagenes: ProductoImagen[];
 }

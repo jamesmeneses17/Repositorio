@@ -90,7 +90,7 @@ export class ProductosController {
     remove(@Param('id') id: string) {
         return this.productosService.remove(+id);
     }
-        @Post(':id/upload-imagen')
+    @Post(':id/upload-imagen')
     @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
     async uploadImagen(
         @Param('id') id: string,
@@ -107,14 +107,24 @@ export class ProductosController {
 
         const { url } = await this.r2.uploadBuffer(file.buffer, file.originalname, file.mimetype);
 
-        // Guardar URL en el campo correspondiente según el tipo
-        const payload: any = {};
-        if (t === 'imagen') payload.imagen_url = url;
-        else payload.ficha_tecnica_url = url;
-
-        const updated = await this.productosService.update(+id, payload);
-
-        // Retornar la URL en el campo correcto
-        return t === 'imagen' ? { imagen_url: url, producto: updated } : { ficha_tecnica_url: url, producto: updated };
+        // Si es imagen, guardar en ProductoImagen; si es ficha_tecnica, guardar en producto
+        if (t === 'imagen') {
+            // Guardar imagen en tabla producto_imagenes
+            const imagen = await this.productosService.saveImage(+id, url);
+            const producto = await this.productosService.findOneWithRelations(+id);
+            return { imagen, producto };
+        } else {
+            // Guardar ficha_tecnica_url en tabla productos
+            const updated = await this.productosService.update(+id, { ficha_tecnica_url: url } as any);
+            return { ficha_tecnica_url: url, producto: updated };
+        }
+    }
+    /**
+     * Elimina una imagen de producto por su ID
+     * DELETE /productos/imagenes/:imagenId
+     */
+    @Delete('imagenes/:imagenId')
+    async deleteImagen(@Param('imagenId') imagenId: string) {
+        return this.productosService.deleteImagenById(Number(imagenId));
     }
 }
