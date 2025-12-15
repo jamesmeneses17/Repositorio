@@ -1,6 +1,7 @@
 # ----------------------------------------------------------------
 # ETAPA 1: BUILDER (USADA PARA INSTALAR Y COMPILAR)
 FROM node:22 AS builder
+#aver
 
 WORKDIR /app
 COPY package.json package-lock.json ./
